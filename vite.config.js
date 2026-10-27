@@ -1,3 +1,4 @@
+import path from 'path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, transformWithOxc } from 'vite'
 
@@ -14,4 +15,9 @@ export default defineConfig({
     },
     react(),
   ],
+  resolve: {
+    alias: [
+      { find: '~', replacement: path.resolve(import.meta.dirname, 'src') },
+    ],
+  },
 })
