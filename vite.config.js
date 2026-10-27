@@ -17,6 +17,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: [
+      { find: '~/components/Layouts', replacement: path.resolve(import.meta.dirname, 'src/components/Layout') },
       { find: '~', replacement: path.resolve(import.meta.dirname, 'src') },
     ],
   },
