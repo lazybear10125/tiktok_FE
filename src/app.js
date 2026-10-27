@@ -1,9 +1,9 @@
 function App() {
-  return (
-    <div className="App">
-      <h2>TikTok UI</h2>
-    </div>
-  );
+   return (
+      <div className="app">
+         <h1>Welcome to the App</h1>
+      </div>
+   );
 }
 
 export default App;
