@@ -1,8 +1,17 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Following from '~/Pages/Following';
+import Home from '~/Pages/Home';
+
 function App() {
    return (
-      <div className="app">
-         <h1>Welcome to the App</h1>
-      </div>
+      <Router>
+         <div className="app">
+            <Routes>
+               <Route path="/" element={<Home />} />
+               <Route path="/following" element={<Following />} />
+            </Routes>
+         </div>
+      </Router>
    );
 }
 
