@@ -50,8 +50,12 @@
 }
 
 .text {
+   background-color: transparent;
+   color: var(--text-color);
+
    &:hover {
       text-decoration: underline;
+      background-color: transparent;
    }
 }
 

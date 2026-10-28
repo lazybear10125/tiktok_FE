@@ -1,17 +1,56 @@
 import { useState, useRef, useEffect } from 'react';
 import classNames from 'classnames/bind';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircleXmark, faSpinner, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
+import {
+   faCircleXmark,
+   faSpinner,
+   faMagnifyingGlass,
+   faEllipsisVertical,
+   faLanguage,
+   faCircleQuestion,
+   faKeyboard,
+} from '@fortawesome/free-solid-svg-icons';
 import HeadlessTippy from '@tippyjs/react/headless';
 
 import Button from '~/components/Button';
 import { useDebounce } from '~/hooks';
 import styles from './Header.module.scss';
 import images from '~/assets/images';
-import { Wrapper as PopperWrapper } from '~/components/Popper';
+import { Wrapper as PopperWrapper, Menu } from '~/components/Popper';
 import AccountItem from '~/components/AccountItem';
 
 const cx = classNames.bind(styles);
+
+const MENU_ITEMS = [
+   {
+      icon: <FontAwesomeIcon icon={faLanguage} />,
+      title: 'English',
+      children: {
+         title: 'Language',
+         data: [
+            {
+               type: 'language',
+               code: 'en',
+               title: 'English',
+            },
+            {
+               type: 'language',
+               code: 'vi',
+               title: 'Tiếng Việt',
+            },
+         ],
+      },
+   },
+   {
+      icon: <FontAwesomeIcon icon={faCircleQuestion} />,
+      title: 'Feedback and help',
+      to: '/feedback',
+   },
+   {
+      icon: <FontAwesomeIcon icon={faKeyboard} />,
+      title: 'Keyboard shortcuts',
+   },
+];
 
 function Header() {
    const [searchValue, setSearchValue] = useState('');
@@ -48,8 +87,8 @@ function Header() {
             },
             {
                id: 3,
-               full_name: 'Lê Thị Hiền',
-               nickname: 'lethihien',
+               full_name: 'Lê Thị C',
+               nickname: 'lethic',
                avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80',
                tick: true,
             },
@@ -75,6 +114,15 @@ function Header() {
 
    const handleHideResult = () => {
       setShowResult(false);
+   };
+
+   const handleMenuChange = (menuItem) => {
+      switch (menuItem.type) {
+         case 'language':
+            break;
+         default:
+            break;
+      }
    };
 
    return (
@@ -124,6 +172,12 @@ function Header() {
             <div className={cx('actions')}>
                <Button text>Upload</Button>
                <Button primary>Log in</Button>
+
+               <Menu items={MENU_ITEMS} onChange={handleMenuChange}>
+                  <button className={cx('more-btn')}>
+                     <FontAwesomeIcon icon={faEllipsisVertical} />
+                  </button>
+               </Menu>
             </div>
          </div>
       </header>
