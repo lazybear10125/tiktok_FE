@@ -4,12 +4,20 @@ import { defineConfig, transformWithOxc } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  optimizeDeps: {
+    rolldownOptions: {
+      moduleTypes: {
+        '.js': 'jsx',
+      },
+    },
+  },
   plugins: [
     {
       name: 'treat-js-files-as-jsx',
       enforce: 'pre',
       async transform(code, id) {
-        if (!id.match(/src\/.*\.js$/)) return null
+        if (!id.replace(/\\/g, '/').includes('/src/')) return null
+        if (!id.endsWith('.js')) return null
         return transformWithOxc(code, id, { lang: 'jsx' })
       },
     },
