@@ -12,6 +12,7 @@ import {
 import SuggestedAccounts from '~/components/SuggestedAccounts';
 import Button from '~/components/Button';
 import config from '~/config';
+import { useAuth } from '~/context/AuthContext';
 
 const cx = classNames.bind(styles);
 
@@ -64,12 +65,14 @@ const SUGGESTED_ACCOUNTS = [
 ];
 
 function Sidebar() {
+   const { currentUser, login } = useAuth();
+
    return (
       <aside className={cx('wrapper')}>
          <Menu>
             <MenuItem
                title="For You"
-               to={config.routes.home}
+               to={currentUser ? config.routes.feed : config.routes.home}
                icon={<HomeIcon />}
                activeIcon={<HomeActiveIcon />}
             />
@@ -87,15 +90,17 @@ function Sidebar() {
             />
          </Menu>
 
-         {/* Phần nhắc nhở đăng nhập */}
-         <div className={cx('login')}>
-            <p className={cx('login-tip')}>
-               Log in to follow creators, like videos, and view comments.
-            </p>
-            <Button outline className={cx('login-btn')}>
-               Log in
-            </Button>
-         </div>
+         {/* Phần nhắc nhở đăng nhập (chỉ hiển thị khi chưa login) */}
+         {!currentUser && (
+            <div className={cx('login')}>
+               <p className={cx('login-tip')}>
+                  Log in to follow creators, like videos, and view comments.
+               </p>
+               <Button outline className={cx('login-btn')} onClick={login}>
+                  Log in
+               </Button>
+            </div>
+         )}
 
          {/* Danh sách tài khoản gợi ý */}
          <SuggestedAccounts label="Suggested accounts" data={SUGGESTED_ACCOUNTS} />

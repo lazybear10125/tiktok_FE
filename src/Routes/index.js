@@ -3,11 +3,15 @@ import { HeaderOnly } from '~/components/Layout';
 
 import Following from '~/Pages/Following';
 import Home from '~/Pages/Home';
+import Feed from '~/Pages/Feed';
 import Profile from '~/Pages/Profile';
 import Upload from '~/Pages/Upload';
 
 const publicRoutes = [
    { path: config.routes.home, component: Home },
+   { path: config.routes.feed, component: Feed },
+   { path: '/foryou', component: Feed },
+   { path: config.routes.login, component: Home },
    { path: config.routes.following, component: Following },
    { path: config.routes.live, component: Following },
    { path: config.routes.profile, component: Profile },

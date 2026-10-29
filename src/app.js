@@ -2,12 +2,14 @@ import { Fragment } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { publicRoutes } from '~/Routes';
 import { DefaultLayout } from '~/components/Layout';
+import { AuthProvider } from '~/context/AuthContext';
 
 function App() {
    return (
       <Router>
-         <div className="app">
-            <Routes>
+         <AuthProvider>
+            <div className="app">
+               <Routes>
                {publicRoutes.map((route, index) => {
                   const Page = route.component;
                   let Layout = DefaultLayout;
@@ -31,7 +33,8 @@ function App() {
                   );
                })}
             </Routes>
-         </div>
+            </div>
+         </AuthProvider>
       </Router>
    );
 }

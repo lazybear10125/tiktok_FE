@@ -9,8 +9,16 @@ import {
    faLanguage,
    faCircleQuestion,
    faKeyboard,
+   faUser,
+   faCoins,
+   faGear,
+   faSignOut,
 } from '@fortawesome/free-solid-svg-icons';
+import Tippy from '@tippyjs/react';
 import HeadlessTippy from '@tippyjs/react/headless';
+import 'tippy.js/dist/tippy.css';
+
+import { UploadIcon, MessageIcon, InboxIcon } from '~/components/Icons';
 
 import Button from '~/components/Button';
 import { useDebounce } from '~/hooks';
@@ -18,6 +26,7 @@ import styles from './Header.module.scss';
 import images from '~/assets/images';
 import { Wrapper as PopperWrapper, Menu } from '~/components/Popper';
 import AccountItem from '~/components/AccountItem';
+import { useAuth } from '~/context/AuthContext';
 
 const cx = classNames.bind(styles);
 
@@ -53,6 +62,33 @@ const MENU_ITEMS = [
 ];
 
 function Header() {
+   const { currentUser, login, logout } = useAuth();
+
+   const userMenu = [
+      {
+         icon: <FontAwesomeIcon icon={faUser} />,
+         title: 'View profile',
+         to: '/@hoaa',
+      },
+      {
+         icon: <FontAwesomeIcon icon={faCoins} />,
+         title: 'Get coins',
+         to: '/coin',
+      },
+      {
+         icon: <FontAwesomeIcon icon={faGear} />,
+         title: 'Settings',
+         to: '/settings',
+      },
+      ...MENU_ITEMS,
+      {
+         icon: <FontAwesomeIcon icon={faSignOut} />,
+         title: 'Log out',
+         to: '/logout',
+         separate: true,
+      },
+   ];
+
    const [searchValue, setSearchValue] = useState('');
    const [searchResult, setSearchResult] = useState([]);
    const [showResult, setShowResult] = useState(true);
@@ -121,6 +157,9 @@ function Header() {
          case 'language':
             break;
          default:
+            if (menuItem.title === 'Log out') {
+               logout();
+            }
             break;
       }
    };
@@ -170,13 +209,46 @@ function Header() {
             </HeadlessTippy>
 
             <div className={cx('actions')}>
-               <Button text>Upload</Button>
-               <Button primary>Log in</Button>
+               {currentUser ? (
+                  <>
+                     <Tippy delay={[0, 50]} content="Upload video" placement="bottom">
+                        <button className={cx('action-btn')}>
+                           <UploadIcon />
+                        </button>
+                     </Tippy>
+                     <Tippy delay={[0, 50]} content="Message" placement="bottom">
+                        <button className={cx('action-btn')}>
+                           <MessageIcon />
+                        </button>
+                     </Tippy>
+                     <Tippy delay={[0, 50]} content="Inbox" placement="bottom">
+                        <button className={cx('action-btn')}>
+                           <InboxIcon />
+                           <span className={cx('badge')}>99+</span>
+                        </button>
+                     </Tippy>
+                  </>
+               ) : (
+                  <>
+                     <Button text>Upload</Button>
+                     <Button primary onClick={login}>Log in</Button>
+                  </>
+               )}
 
-               <Menu items={MENU_ITEMS} onChange={handleMenuChange}>
-                  <button className={cx('more-btn')}>
-                     <FontAwesomeIcon icon={faEllipsisVertical} />
-                  </button>
+               <Menu items={currentUser ? userMenu : MENU_ITEMS} onChange={handleMenuChange}>
+                  {currentUser ? (
+                     <button className={cx('action-btn')}>
+                        <img
+                           className={cx('user-avatar')}
+                           src="https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80"
+                           alt="Bear"
+                        />
+                     </button>
+                  ) : (
+                     <button className={cx('more-btn')}>
+                        <FontAwesomeIcon icon={faEllipsisVertical} />
+                     </button>
+                  )}
                </Menu>
             </div>
          </div>
