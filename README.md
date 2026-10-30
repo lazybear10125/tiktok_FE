@@ -1,16 +1,14 @@
-# React + Vite
+1. cái avt /login bị trùng với icon menu trong /logout
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+khi mousse vô avt logout ra thì sang trang /login thì vẫn nhận diện là
+icon menu/logout
 
-Currently, two official plugins are available:
+2. chỉnh lại cái function Menu() and <Tippy> 3. set riêng mỗi icon pomernent không dùng chung
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+3. vấn đề khi trang login và logout khi chuyển đổi lẫn nhau
+   vẫn giữ menu của đợt log trươc không tự update
 
-## React Compiler
+// <Menu items={currentUser ? userMenu : MENU_ITEMS} onChange={handleMenuChange}>
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+// 'components/Layout/components\Header/index.js'
+// 'components\Popper\Menu\index.js'

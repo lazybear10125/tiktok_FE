@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import classNames from 'classnames/bind';
 import styles from './Sidebar.module.scss';
 import Menu, { MenuItem } from './Menu';
@@ -13,59 +14,48 @@ import SuggestedAccounts from '~/components/SuggestedAccounts';
 import Button from '~/components/Button';
 import config from '~/config';
 import { useAuth } from '~/context/AuthContext';
+import * as userServices from '~/services/userService';
 
 const cx = classNames.bind(styles);
 
-const SUGGESTED_ACCOUNTS = [
-   {
-      id: 1,
-      nickname: 'hoaa.hanassii',
-      name: 'Đào Lê Phương Hoa',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-      tick: true,
-      followers: '14.2M',
-      likes: '480.5M',
-   },
-   {
-      id: 2,
-      nickname: 'mocachodien',
-      name: 'MOCA 🐶 VN',
-      avatar: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=100&q=80',
-      tick: true,
-      followers: '3.1M',
-      likes: '98.2M',
-   },
-   {
-      id: 3,
-      nickname: 'hoshiphan',
-      name: 'Hoshi Phan',
-      avatar: 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&w=100&q=80',
-      tick: true,
-      followers: '4.8M',
-      likes: '120.3M',
-   },
-   {
-      id: 4,
-      nickname: 'jsol.dreams',
-      name: 'JSOL',
-      avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80',
-      tick: true,
-      followers: '2.5M',
-      likes: '55.6M',
-   },
-   {
-      id: 5,
-      nickname: 'vietphuongthoa98',
-      name: 'Việt Phương Thoa',
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&q=80',
-      tick: true,
-      followers: '11.6M',
-      likes: '340.1M',
-   },
-];
-
 function Sidebar() {
    const { currentUser, login } = useAuth();
+   const [suggestedUsers, setSuggestedUsers] = useState([]);
+   const [followingUsers, setFollowingUsers] = useState([]);
+
+   useEffect(() => {
+      userServices
+         .getSuggested({ page: 1, perPage: 5 })
+         .then((data) => {
+            if (data && data.length > 0) {
+               setSuggestedUsers(data);
+            }
+         })
+         .catch((err) => console.error(err));
+   }, []);
+
+   useEffect(() => {
+      if (currentUser) {
+         userServices
+            .getFollowing({ page: 1 })
+            .then((data) => {
+               if (data && data.length > 0) {
+                  setFollowingUsers(data);
+               }
+            })
+            .catch((err) => console.error(err));
+      } else {
+         setFollowingUsers([]);
+      }
+   }, [currentUser]);
+
+   const userAvatar = (
+      <img
+         style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+         src="https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80"
+         alt="Profile"
+      />
+   );
 
    return (
       <aside className={cx('wrapper')}>
@@ -82,28 +72,21 @@ function Sidebar() {
                icon={<UserGroupIcon />}
                activeIcon={<UserGroupActiveIcon />}
             />
-            <MenuItem
-               title="LIVE"
-               to={config.routes.live}
-               icon={<LiveIcon />}
-               activeIcon={<LiveActiveIcon />}
-            />
+            <MenuItem title="LIVE" to={config.routes.live} icon={<LiveIcon />} activeIcon={<LiveActiveIcon />} />
+            {currentUser && <MenuItem title="Profile" to="/@hoahanassii" icon={userAvatar} activeIcon={userAvatar} />}
          </Menu>
 
-         {/* Phần nhắc nhở đăng nhập (chỉ hiển thị khi chưa login) */}
          {!currentUser && (
             <div className={cx('login')}>
-               <p className={cx('login-tip')}>
-                  Log in to follow creators, like videos, and view comments.
-               </p>
+               <p className={cx('login-tip')}>Log in to follow creators, like videos, and view comments.</p>
                <Button outline className={cx('login-btn')} onClick={login}>
                   Log in
                </Button>
             </div>
          )}
 
-         {/* Danh sách tài khoản gợi ý */}
-         <SuggestedAccounts label="Suggested accounts" data={SUGGESTED_ACCOUNTS} />
+         <SuggestedAccounts label="Suggested accounts" data={suggestedUsers} />
+         {currentUser && <SuggestedAccounts label="Following accounts" data={followingUsers} />}
       </aside>
    );
 }

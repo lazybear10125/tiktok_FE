@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import classNames from 'classnames/bind';
 import Tippy from '@tippyjs/react/headless';
 
@@ -14,6 +14,10 @@ const defaultFn = () => {};
 function Menu({ children, items = [], onChange = defaultFn }) {
    const [history, setHistory] = useState([{ data: items }]);
    const current = history[history.length - 1];
+
+   useEffect(() => {
+      setHistory([{ data: items }]);
+   }, [items]);
 
    const renderItems = () => {
       return current.data.map((item, index) => {
@@ -46,7 +50,7 @@ function Menu({ children, items = [], onChange = defaultFn }) {
    return (
       <Tippy
          interactive
-         delay={[0, 700]}
+         delay={[0, 50]}
          offset={[12, 8]}
          placement="bottom-end"
          render={(attrs) => (

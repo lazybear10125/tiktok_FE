@@ -27,6 +27,7 @@ import images from '~/assets/images';
 import { Wrapper as PopperWrapper, Menu } from '~/components/Popper';
 import AccountItem from '~/components/AccountItem';
 import { useAuth } from '~/context/AuthContext';
+import * as searchServices from '~/services/searchService';
 
 const cx = classNames.bind(styles);
 
@@ -104,35 +105,14 @@ function Header() {
          return;
       }
 
-      setLoading(true);
-      const timer = setTimeout(() => {
-         setSearchResult([
-            {
-               id: 1,
-               full_name: 'Đào Lê Phương Hoa',
-               nickname: 'hoaa.hanassii',
-               avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-               tick: true,
-            },
-            {
-               id: 2,
-               full_name: 'Nguyễn Văn Bear',
-               nickname: 'nguyenvanbear',
-               avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80',
-               tick: false,
-            },
-            {
-               id: 3,
-               full_name: 'Lê Thị C',
-               nickname: 'lethic',
-               avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80',
-               tick: true,
-            },
-         ]);
+      const fetchApi = async () => {
+         setLoading(true);
+         const result = await searchServices.search(debouncedValue);
+         setSearchResult(result || []);
          setLoading(false);
-      }, 500);
+      };
 
-      return () => clearTimeout(timer);
+      fetchApi();
    }, [debouncedValue]);
 
    const handleChange = (e) => {
@@ -231,7 +211,9 @@ function Header() {
                ) : (
                   <>
                      <Button text>Upload</Button>
-                     <Button primary onClick={login}>Log in</Button>
+                     <Button primary onClick={login}>
+                        Log in
+                     </Button>
                   </>
                )}
 
@@ -242,6 +224,11 @@ function Header() {
                            className={cx('user-avatar')}
                            src="https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80"
                            alt="Bear"
+                           // Set key để thay đổi menu khi currentUser thay đổi,
+                           // Ví dụ khi đăng xuất và đăng nhập lại
+                           key={currentUser ? 'user' : 'guest'}
+                           items={currentUser ? userMenu : MENU_ITEMS}
+                           onChange={handleMenuChange}
                         />
                      </button>
                   ) : (
