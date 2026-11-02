@@ -1,6 +1,6 @@
 import * as httpRequest from '~/utils/httpRequest';
 
-export const getSuggested = async ({ page = 1, perPage = 5 } = {}) => {
+export const getSuggested = async ({ page = 1, perPage = 20 } = {}) => {
    try {
       const res = await httpRequest.get('users/suggested', {
          params: {
@@ -8,21 +8,22 @@ export const getSuggested = async ({ page = 1, perPage = 5 } = {}) => {
             per_page: perPage,
          },
       });
-      return res.data;
+      return res.data || [];
    } catch (error) {
       console.error('getSuggested error:', error);
       return [];
    }
 };
 
-export const getFollowing = async ({ page = 1 } = {}) => {
+export const getFollowing = async ({ page = 1, perPage = 20 } = {}) => {
    try {
       const res = await httpRequest.get('users/following', {
          params: {
             page,
+            per_page: perPage,
          },
       });
-      return res.data;
+      return res.data || [];
    } catch (error) {
       console.error('getFollowing error:', error);
       return [];
@@ -60,7 +61,7 @@ export const getUser = async (nickname) => {
       }
 
       const res = await httpRequest.get(`users/@${cleanNickname}`);
-      return res.data;
+      return res.data || null;
    } catch (error) {
       console.error('getUser error:', error);
       return null;

@@ -25,7 +25,7 @@ function Sidebar() {
 
    useEffect(() => {
       userServices
-         .getSuggested({ page: 1, perPage: 5 })
+         .getSuggested({ page: 1, perPage: 20 })
          .then((data) => {
             if (data && data.length > 0) {
                setSuggestedUsers(data);
@@ -37,7 +37,7 @@ function Sidebar() {
    useEffect(() => {
       if (currentUser) {
          userServices
-            .getFollowing({ page: 1 })
+            .getFollowing({ page: 1, perPage: 20 })
             .then((data) => {
                if (data && data.length > 0) {
                   setFollowingUsers(data);
