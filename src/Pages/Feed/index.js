@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import classNames from 'classnames/bind';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import {
+   faChevronUp,
+   faChevronDown,
+   faHeart,
+   faCommentDots,
+   faShare,
+} from '@fortawesome/free-solid-svg-icons';
 
 import styles from './Feed.module.scss';
 
@@ -15,6 +21,16 @@ const IMAGES = [
 
 function Feed() {
    const [currentIndex, setCurrentIndex] = useState(0);
+   const [likedList, setLikedList] = useState({});
+
+   const isLiked = !!likedList[currentIndex];
+
+   const handleToggleLike = () => {
+      setLikedList((prev) => ({
+         ...prev,
+         [currentIndex]: !prev[currentIndex],
+      }));
+   };
 
    const handlePrev = () => {
       setCurrentIndex((prev) => (prev > 0 ? prev - 1 : IMAGES.length - 1));
@@ -30,9 +46,31 @@ function Feed() {
             {/* IMG */}
             <div className={cx('image-frame')}>
                <img src={IMAGES[currentIndex]} alt="TikTok" className={cx('image')} />
+
+               {/* Cụm 3 icon position: absolute căn đều nhau */}
+               <div className={cx('action-icons')}>
+                  {/* Icon Tim - ấn đổi màu đỏ */}
+                  <button
+                     className={cx('action-btn', { active: isLiked })}
+                     onClick={handleToggleLike}
+                     title="Thả tim"
+                  >
+                     <FontAwesomeIcon icon={faHeart} />
+                  </button>
+
+                  {/* Icon Bình luận - chỉ để hover */}
+                  <button className={cx('action-btn')} title="Bình luận">
+                     <FontAwesomeIcon icon={faCommentDots} />
+                  </button>
+
+                  {/* Icon Chia sẻ - chỉ để hover */}
+                  <button className={cx('action-btn')} title="Chia sẻ">
+                     <FontAwesomeIcon icon={faShare} />
+                  </button>
+               </div>
             </div>
 
-            {/*icon Up Down */}
+            {/* icon Up Down */}
             <div className={cx('navigation')}>
                <button className={cx('nav-btn')} onClick={handlePrev} title="Lên">
                   <FontAwesomeIcon icon={faChevronUp} />

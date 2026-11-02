@@ -4,8 +4,13 @@
    --search-top-spacer: 9px;
    --search-button-width: 52px;
 
-   height: var(--default-layout-header-height);
+   position: fixed;
+   top: 0;
+   left: 0;
    width: 100%;
+   z-index: 10;
+   background-color: var(--white);
+   height: var(--default-layout-header-height);
    box-shadow: 0 1px 1px rgb(0 0 0 / 12%);
    display: flex;
    justify-content: center;

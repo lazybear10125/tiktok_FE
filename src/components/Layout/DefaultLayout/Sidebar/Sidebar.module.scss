@@ -1,6 +1,42 @@
 .wrapper {
    width: 356px;
    padding: 12px 0 26px 8px;
+   position: sticky;
+   top: var(--default-layout-header-height);
+   height: calc(100vh - var(--default-layout-header-height));
+   overflow-y: overlay;
+   overscroll-behavior: contain;
+   flex-shrink: 0;
+
+   // Tùy chỉnh thanh cuộn: ẩn mặc định, chỉ hiện khi rê chuột vào Sidebar
+   &::-webkit-scrollbar {
+      width: 6px;
+   }
+
+   &::-webkit-scrollbar-track {
+      background: transparent;
+   }
+
+   &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 4px;
+   }
+
+   &:hover::-webkit-scrollbar-thumb {
+      background: rgba(22, 24, 35, 0.15);
+   }
+
+   &:hover::-webkit-scrollbar-thumb:hover {
+      background: rgba(22, 24, 35, 0.3);
+   }
+
+   // Hỗ trợ Firefox
+   scrollbar-width: thin;
+   scrollbar-color: transparent transparent;
+
+   &:hover {
+      scrollbar-color: rgba(22, 24, 35, 0.15) transparent;
+   }
 }
 
 .login {

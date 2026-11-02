@@ -13,6 +13,7 @@
 }
 
 .image-frame {
+   position: relative;
    width: 360px;
    height: 600px;
    border-radius: 16px;
@@ -26,6 +27,50 @@
    height: 100%;
    object-fit: cover;
    display: block;
+}
+
+// Cụm 3 icon với position: absolute trên ảnh, căn đều nhau
+.action-icons {
+   position: absolute;
+   bottom: 24px;
+   right: 20px;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   justify-content: center;
+   gap: 20px; // Căn đều khoảng cách giữa 3 icon
+   z-index: 2;
+}
+
+.action-btn {
+   width: 44px;
+   height: 44px;
+   background: transparent;
+   border: none;
+   outline: none;
+   font-size: 3.2rem;
+   color: #fff;
+   cursor: pointer;
+   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   transition: transform 0.2s ease, opacity 0.2s ease;
+
+   // Hiệu ứng hover cho các icon
+   &:hover {
+      transform: scale(1.18);
+      opacity: 0.9;
+   }
+
+   &:active {
+      transform: scale(0.95);
+   }
+
+   // Tim ấn vào thì hiện lên màu đỏ
+   &.active {
+      color: #fe2c55;
+   }
 }
 
 .navigation {

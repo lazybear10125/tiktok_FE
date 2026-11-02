@@ -34,9 +34,10 @@ export const PERSONAL_USER = {
    nickname: 'bear',
    first_name: 'Nguyễn',
    last_name: 'Cường',
-   full_name: 'Nguyễn Cường (Bear)',
-   avatar: 'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80',
-   bio: '🐻 Chào mừng đến với trang cá nhân của mình!\nLập trình viên Frontend & Yêu thích sáng tạo nội dung 🚀✨',
+   full_name: 'Nguyễn Cường',
+   avatar:
+      'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80',
+   bio: 'Lập trình viên Frontend & Yêu thích sáng tạo nội dung 🚀✨',
    tick: true,
    followings_count: 86,
    followers_count: 125000,
@@ -50,7 +51,6 @@ export const getUser = async (nickname) => {
       const cleanNickname = nickname ? nickname.replace(/^@/, '') : '';
       if (!cleanNickname) return null;
 
-      // Nếu là profile cá nhân
       if (
          cleanNickname.toLowerCase() === 'bear' ||
          cleanNickname.toLowerCase() === 'profile' ||

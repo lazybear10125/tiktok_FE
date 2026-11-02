@@ -14,3 +14,8 @@
 
 4. add api tiktok
    // seach, suggested accounts, following accounts
+
+5. - profile: personal, suggested, following
+   - Scrollbar: sidebar, menu
+   - add position
+   - fixed header
