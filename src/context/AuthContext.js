@@ -8,25 +8,33 @@ export function AuthProvider({ children }) {
    const location = useLocation();
    const navigate = useNavigate();
 
-   // Mặc định đăng nhập nếu ở route feed hoặc foryou, ngược lại chưa đăng nhập
-   const isFeedRoute = location.pathname === config.routes.feed || location.pathname === '/foryou';
-   const [currentUser, setCurrentUser] = useState(isFeedRoute);
+   const [currentUser, setCurrentUser] = useState(() => {
+      const stored = localStorage.getItem('isLoggedIn');
+      if (stored !== null) {
+         return stored === 'true';
+      }
+      return location.pathname === config.routes.feed || location.pathname === '/foryou';
+   });
 
    useEffect(() => {
       if (location.pathname === config.routes.feed || location.pathname === '/foryou') {
          setCurrentUser(true);
+         localStorage.setItem('isLoggedIn', 'true');
       } else if (location.pathname === config.routes.home || location.pathname === config.routes.login) {
          setCurrentUser(false);
+         localStorage.setItem('isLoggedIn', 'false');
       }
    }, [location.pathname]);
 
    const login = () => {
       setCurrentUser(true);
+      localStorage.setItem('isLoggedIn', 'true');
       navigate(config.routes.feed);
    };
 
    const logout = () => {
       setCurrentUser(false);
+      localStorage.setItem('isLoggedIn', 'false');
       navigate(config.routes.home);
    };
 

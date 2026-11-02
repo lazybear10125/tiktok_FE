@@ -69,7 +69,7 @@ function Header() {
       {
          icon: <FontAwesomeIcon icon={faUser} />,
          title: 'View profile',
-         to: '/@hoaa',
+         to: '/@hoahanassii',
       },
       {
          icon: <FontAwesomeIcon icon={faCoins} />,
@@ -89,13 +89,13 @@ function Header() {
          separate: true,
       },
    ];
-
+   // useDebounce Search
    const [searchValue, setSearchValue] = useState('');
    const [searchResult, setSearchResult] = useState([]);
    const [showResult, setShowResult] = useState(true);
    const [loading, setLoading] = useState(false);
 
-   const debouncedValue = useDebounce(searchValue, 500);
+   const debouncedValue = useDebounce(searchValue, 600);
 
    const inputRef = useRef();
 
@@ -224,8 +224,7 @@ function Header() {
                            className={cx('user-avatar')}
                            src="https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80"
                            alt="Bear"
-                           // Set key để thay đổi menu khi currentUser thay đổi,
-                           // Ví dụ khi đăng xuất và đăng nhập lại
+
                            key={currentUser ? 'user' : 'guest'}
                            items={currentUser ? userMenu : MENU_ITEMS}
                            onChange={handleMenuChange}

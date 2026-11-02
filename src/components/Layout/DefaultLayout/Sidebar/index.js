@@ -73,7 +73,7 @@ function Sidebar() {
                activeIcon={<UserGroupActiveIcon />}
             />
             <MenuItem title="LIVE" to={config.routes.live} icon={<LiveIcon />} activeIcon={<LiveActiveIcon />} />
-            {currentUser && <MenuItem title="Profile" to="/@hoahanassii" icon={userAvatar} activeIcon={userAvatar} />}
+            {currentUser && <MenuItem title="Profile" to="/@bear" icon={userAvatar} activeIcon={userAvatar} />}
          </Menu>
 
          {!currentUser && (
