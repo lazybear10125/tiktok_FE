@@ -82,7 +82,7 @@ function Header() {
       {
          icon: <FontAwesomeIcon icon={faUser} />,
          title: 'View profile',
-         to: '/@bear',
+         to: currentUser?.nickname ? `/@${currentUser.nickname}` : '/@bear',
       },
       {
          icon: <FontAwesomeIcon icon={faCoins} />,
@@ -233,8 +233,11 @@ function Header() {
                      <button className={cx('action-btn')}>
                         <Image
                            className={cx('user-avatar')}
-                           src="https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80"
-                           alt="Bear"
+                           src={
+                              currentUser?.avatar ||
+                              'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80'
+                           }
+                           alt={currentUser?.full_name || 'Bear'}
                            fallback={images.noImage}
                         />
                      </button>

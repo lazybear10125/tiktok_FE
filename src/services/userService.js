@@ -52,6 +52,11 @@ export const getUser = async (nickname) => {
       const cleanNickname = nickname ? nickname.replace(/^@/, '') : '';
       if (!cleanNickname) return null;
 
+      const res = await httpRequest.get(`users/@${cleanNickname}`);
+      return res.data || null;
+   } catch (error) {
+      console.error('getUser error:', error);
+      const cleanNickname = nickname ? nickname.replace(/^@/, '') : '';
       if (
          cleanNickname.toLowerCase() === 'bear' ||
          cleanNickname.toLowerCase() === 'profile' ||
@@ -59,11 +64,39 @@ export const getUser = async (nickname) => {
       ) {
          return PERSONAL_USER;
       }
-
-      const res = await httpRequest.get(`users/@${cleanNickname}`);
-      return res.data || null;
-   } catch (error) {
-      console.error('getUser error:', error);
       return null;
+   }
+};
+
+export const followUser = async (nickname) => {
+   try {
+      const cleanNickname = nickname ? nickname.replace(/^@/, '') : '';
+      const res = await httpRequest.post(`users/@${cleanNickname}/follow`);
+      return res.data;
+   } catch (error) {
+      console.error('followUser error:', error);
+      throw error;
+   }
+};
+
+export const unfollowUser = async (nickname) => {
+   try {
+      const cleanNickname = nickname ? nickname.replace(/^@/, '') : '';
+      const res = await httpRequest.post(`users/@${cleanNickname}/unfollow`);
+      return res.data;
+   } catch (error) {
+      console.error('unfollowUser error:', error);
+      throw error;
+   }
+};
+
+export const updateUser = async (nickname, data) => {
+   try {
+      const cleanNickname = nickname ? nickname.replace(/^@/, '') : '';
+      const res = await httpRequest.patch(`users/@${cleanNickname}`, data);
+      return res.data;
+   } catch (error) {
+      console.error('updateUser error:', error);
+      throw error;
    }
 };

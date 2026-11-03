@@ -6,6 +6,7 @@ import { faCircleCheck, faCheck } from '@fortawesome/free-solid-svg-icons';
 import Button from '~/components/Button';
 import Image from '~/components/Image';
 import { useAuth } from '~/context/AuthContext';
+import * as userServices from '~/services/userService';
 import styles from './AccountPreview.module.scss';
 
 const cx = classNames.bind(styles);
@@ -24,18 +25,24 @@ function AccountPreview({ data }) {
    const [isFollowed, setIsFollowed] = useState(!!data.is_followed);
    const [followersCount, setFollowersCount] = useState(data.followers_count ?? data.followers ?? 0);
 
-   const handleToggleFollow = () => {
+   const handleToggleFollow = async () => {
       if (!currentUser) {
          openLoginModal();
          return;
       }
 
-      if (isFollowed) {
-         setIsFollowed(false);
-         setFollowersCount((prev) => Math.max(0, prev - 1));
-      } else {
-         setIsFollowed(true);
-         setFollowersCount((prev) => prev + 1);
+      try {
+         if (isFollowed) {
+            setIsFollowed(false);
+            setFollowersCount((prev) => Math.max(0, prev - 1));
+            await userServices.unfollowUser(data.nickname);
+         } else {
+            setIsFollowed(true);
+            setFollowersCount((prev) => prev + 1);
+            await userServices.followUser(data.nickname);
+         }
+      } catch (err) {
+         console.error('Follow toggle error:', err);
       }
    };
 

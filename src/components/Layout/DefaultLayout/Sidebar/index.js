@@ -54,8 +54,11 @@ function Sidebar() {
    const userAvatar = (
       <Image
          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
-         src="https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80"
-         alt="Profile"
+         src={
+            currentUser?.avatar ||
+            'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80'
+         }
+         alt={currentUser?.full_name || 'Profile'}
          fallback={images.noImage}
       />
    );
@@ -76,7 +79,14 @@ function Sidebar() {
                activeIcon={<UserGroupActiveIcon />}
             />
             <MenuItem title="LIVE" to={config.routes.live} icon={<LiveIcon />} activeIcon={<LiveActiveIcon />} />
-            {currentUser && <MenuItem title="Profile" to="/@bear" icon={userAvatar} activeIcon={userAvatar} />}
+            {currentUser && (
+               <MenuItem
+                  title="Profile"
+                  to={currentUser?.nickname ? `/@${currentUser.nickname}` : '/@bear'}
+                  icon={userAvatar}
+                  activeIcon={userAvatar}
+               />
+            )}
          </Menu>
 
          {!currentUser && (

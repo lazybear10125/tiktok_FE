@@ -4,6 +4,7 @@ import { HeaderOnly } from '~/components/Layout';
 
 const Feed = lazy(() => import('~/pages/Feed'));
 const Following = lazy(() => import('~/pages/Following'));
+const Live = lazy(() => import('~/pages/Live'));
 const Profile = lazy(() => import('~/pages/Profile'));
 const Upload = lazy(() => import('~/pages/Upload'));
 
@@ -13,7 +14,7 @@ const publicRoutes = [
    { path: '/foryou', component: Feed },
    { path: config.routes.login, component: Feed },
    { path: config.routes.following, component: Following },
-   { path: config.routes.live, component: Following },
+   { path: config.routes.live, component: Live },
    { path: '/profile', component: Profile },
    { path: config.routes.profile, component: Profile },
    { path: config.routes.upload, component: Upload, layout: HeaderOnly },

@@ -29,6 +29,103 @@
    display: block;
 }
 
+// Thông tin tài khoản chưa follow đè góc dưới bên trái ảnh
+.overlay-info {
+   position: absolute;
+   bottom: 0;
+   left: 0;
+   right: 76px;
+   padding: 24px 18px 20px;
+   // background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.85) 100%);
+   color: #fff;
+   z-index: 2;
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+}
+
+.author-info {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   color: #fff;
+   width: fit-content;
+   user-select: none;
+   cursor: default;
+}
+
+.author-avatar {
+   width: 42px;
+   height: 42px;
+   border-radius: 50%;
+   border: 2px solid rgba(255, 255, 255, 0.9);
+   object-fit: cover;
+   flex-shrink: 0;
+}
+
+.author-meta {
+   display: flex;
+   flex-direction: column;
+   overflow: hidden;
+}
+
+.author-name-row {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+}
+
+.author-nickname {
+   font-weight: 700;
+   font-size: 1.5rem;
+   color: #fff;
+   cursor: pointer;
+
+   &:hover {
+      text-decoration: underline;
+   }
+}
+
+.check-icon {
+   color: #20d5ec;
+   font-size: 1.3rem;
+}
+
+.author-fullname {
+   font-size: 1.2rem;
+   color: rgba(255, 255, 255, 0.75);
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+}
+
+.follow-badge {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   gap: 4px;
+   font-size: 1.2rem;
+   font-weight: 600;
+   background-color: #fe2c55;
+   padding: 3px 12px;
+   border-radius: 12px;
+   width: fit-content;
+   color: #fff;
+   user-select: none;
+   cursor: default;
+}
+
+.caption {
+   font-size: 1.3rem;
+   line-height: 1.4;
+   color: rgba(255, 255, 255, 0.92);
+   display: -webkit-box;
+   -webkit-line-clamp: 2;
+   -webkit-box-orient: vertical;
+   overflow: hidden;
+   margin-top: 2px;
+}
+
 // Cụm 3 icon với position: absolute trên ảnh, căn đều nhau
 .action-icons {
    position: absolute;
@@ -55,7 +152,9 @@
    display: flex;
    align-items: center;
    justify-content: center;
-   transition: transform 0.2s ease, opacity 0.2s ease;
+   transition:
+      transform 0.2s ease,
+      opacity 0.2s ease;
 
    // Hiệu ứng hover cho các icon
    &:hover {

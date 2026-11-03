@@ -111,18 +111,24 @@ function Profile() {
       }
    }, [activeTab, loading]);
 
-   const handleToggleFollow = () => {
+   const handleToggleFollow = async () => {
       if (!currentUser) {
          openLoginModal();
          return;
       }
 
-      if (isFollowed) {
-         setIsFollowed(false);
-         setFollowersCount((prev) => Math.max(0, prev - 1));
-      } else {
-         setIsFollowed(true);
-         setFollowersCount((prev) => prev + 1);
+      try {
+         if (isFollowed) {
+            setIsFollowed(false);
+            setFollowersCount((prev) => Math.max(0, prev - 1));
+            await userServices.unfollowUser(cleanNickname);
+         } else {
+            setIsFollowed(true);
+            setFollowersCount((prev) => prev + 1);
+            await userServices.followUser(cleanNickname);
+         }
+      } catch (err) {
+         console.error('Toggle follow failed:', err);
       }
    };
 
@@ -141,7 +147,15 @@ function Profile() {
       setIsEditModalOpen(true);
    };
 
-   const handleSaveProfile = (updatedUser) => {
+   const handleSaveProfile = async (updatedUser) => {
+      try {
+         await userServices.updateUser(cleanNickname, {
+            full_name: updatedUser.full_name,
+            bio: updatedUser.bio,
+         });
+      } catch (err) {
+         console.error('Update profile API failed:', err);
+      }
       setUser(updatedUser);
       setToastMessage('Profile updated successfully!');
       setShowToast(true);

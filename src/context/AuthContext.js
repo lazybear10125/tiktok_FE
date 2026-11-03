@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import config from '~/config';
 import AuthModal from '~/components/AuthModal';
+import * as authServices from '~/services/authService';
 
 const AuthContext = createContext();
 
@@ -23,6 +24,22 @@ export function AuthProvider({ children }) {
       description: 'Vui lòng đăng nhập để theo dõi, tương tác và trải nghiệm đầy đủ các tính năng của TikTok.',
    });
 
+   // Tự động đồng bộ thông tin tài khoản nếu đã có token
+   useEffect(() => {
+      const token = localStorage.getItem('token');
+      if (token) {
+         authServices
+            .getCurrentUser()
+            .then((userData) => {
+               if (userData) {
+                  setCurrentUser(userData);
+                  localStorage.setItem('isLoggedIn', 'true');
+               }
+            })
+            .catch(() => {});
+      }
+   }, []);
+
    const openLoginModal = (options = {}) => {
       setModalConfig({
          isOpen: true,
@@ -39,16 +56,25 @@ export function AuthProvider({ children }) {
 
    useEffect(() => {
       if (location.pathname === config.routes.feed || location.pathname === '/foryou') {
-         setCurrentUser(true);
+         if (!currentUser) setCurrentUser(true);
          localStorage.setItem('isLoggedIn', 'true');
       } else if (location.pathname === config.routes.login) {
          setCurrentUser(false);
          localStorage.setItem('isLoggedIn', 'false');
       }
-   }, [location.pathname]);
+   }, [location.pathname, currentUser]);
 
-   const login = () => {
-      setCurrentUser(true);
+   const login = async (credentials) => {
+      try {
+         const res = await authServices.login(credentials);
+         if (res && res.data) {
+            setCurrentUser(res.data);
+         } else {
+            setCurrentUser(true);
+         }
+      } catch {
+         setCurrentUser(true);
+      }
       localStorage.setItem('isLoggedIn', 'true');
       closeLoginModal();
       if (location.pathname === config.routes.home || location.pathname === config.routes.login) {
@@ -59,6 +85,7 @@ export function AuthProvider({ children }) {
    const logout = () => {
       setCurrentUser(false);
       localStorage.setItem('isLoggedIn', 'false');
+      localStorage.removeItem('token');
       closeLoginModal();
       if (
          location.pathname === config.routes.feed ||
