@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import classNames from 'classnames/bind';
+import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
    faCircleXmark,
@@ -19,11 +20,12 @@ import HeadlessTippy from '@tippyjs/react/headless';
 import 'tippy.js/dist/tippy.css';
 
 import { UploadIcon, MessageIcon, InboxIcon } from '~/components/Icons';
-
 import Button from '~/components/Button';
+import Image from '~/components/Image';
 import { useDebounce } from '~/hooks';
 import styles from './Header.module.scss';
 import images from '~/assets/images';
+import config from '~/config';
 import { Wrapper as PopperWrapper, Menu } from '~/components/Popper';
 import AccountItem from '~/components/AccountItem';
 import { useAuth } from '~/context/AuthContext';
@@ -38,116 +40,26 @@ const MENU_ITEMS = [
       children: {
          title: 'Language',
          data: [
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
-            {
-               type: 'language',
-               code: 'en',
-               title: 'English',
-            },
-            {
-               type: 'language',
-               code: 'vi',
-               title: 'Tiếng Việt',
-            },
+            { type: 'language', code: 'en', title: 'English' },
+            { type: 'language', code: 'vi', title: 'Tiếng Việt' },
+            { type: 'language', code: 'es', title: 'Español' },
+            { type: 'language', code: 'fr', title: 'Français' },
+            { type: 'language', code: 'de', title: 'Deutsch' },
+            { type: 'language', code: 'ja', title: '日本語' },
+            { type: 'language', code: 'ko', title: '한국어' },
+            { type: 'language', code: 'zh', title: '简体中文' },
+            { type: 'language', code: 'th', title: 'ไทย' },
+            { type: 'language', code: 'id', title: 'Bahasa Indonesia' },
+            { type: 'language', code: 'en', title: 'English' },
+            { type: 'language', code: 'vi', title: 'Tiếng Việt' },
+            { type: 'language', code: 'es', title: 'Español' },
+            { type: 'language', code: 'fr', title: 'Français' },
+            { type: 'language', code: 'de', title: 'Deutsch' },
+            { type: 'language', code: 'ja', title: '日本語' },
+            { type: 'language', code: 'ko', title: '한국어' },
+            { type: 'language', code: 'zh', title: '简体中文' },
+            { type: 'language', code: 'th', title: 'ไทย' },
+            { type: 'language', code: 'id', title: 'Bahasa Indonesia' },
          ],
       },
    },
@@ -159,6 +71,7 @@ const MENU_ITEMS = [
    {
       icon: <FontAwesomeIcon icon={faKeyboard} />,
       title: 'Keyboard shortcuts',
+      to: '/shortcuts',
    },
 ];
 
@@ -169,12 +82,12 @@ function Header() {
       {
          icon: <FontAwesomeIcon icon={faUser} />,
          title: 'View profile',
-         to: '/@hoahanassii',
+         to: '/@bear',
       },
       {
          icon: <FontAwesomeIcon icon={faCoins} />,
          title: 'Get coins',
-         to: '/coin',
+         to: '/coins',
       },
       {
          icon: <FontAwesomeIcon icon={faGear} />,
@@ -185,11 +98,9 @@ function Header() {
       {
          icon: <FontAwesomeIcon icon={faSignOut} />,
          title: 'Log out',
-         to: '/logout',
          separate: true,
       },
    ];
-   // useDebounce Search
    const [searchValue, setSearchValue] = useState('');
    const [searchResult, setSearchResult] = useState([]);
    const [showResult, setShowResult] = useState(true);
@@ -247,9 +158,9 @@ function Header() {
    return (
       <header className={cx('wrapper')}>
          <div className={cx('inner')}>
-            <div className={cx('logo')}>
+            <Link to={currentUser ? config.routes.feed : config.routes.home} className={cx('logo-link')}>
                <img src={images.logo} alt="TikTok" />
-            </div>
+            </Link>
 
             <HeadlessTippy
                interactive
@@ -264,7 +175,7 @@ function Header() {
                      </PopperWrapper>
                   </div>
                )}
-               onclick={handleHideResult}
+               onClickOutside={handleHideResult}
             >
                <div className={cx('search')}>
                   <input
@@ -320,14 +231,11 @@ function Header() {
                <Menu items={currentUser ? userMenu : MENU_ITEMS} onChange={handleMenuChange}>
                   {currentUser ? (
                      <button className={cx('action-btn')}>
-                        <img
+                        <Image
                            className={cx('user-avatar')}
                            src="https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80"
                            alt="Bear"
-
-                           key={currentUser ? 'user' : 'guest'}
-                           items={currentUser ? userMenu : MENU_ITEMS}
-                           onChange={handleMenuChange}
+                           fallback={images.noImage}
                         />
                      </button>
                   ) : (

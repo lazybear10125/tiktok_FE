@@ -1,22 +1,23 @@
+import { lazy } from 'react';
 import config from '~/config';
 import { HeaderOnly } from '~/components/Layout';
 
-import Following from '~/Pages/Following';
-import Home from '~/Pages/Home';
-import Feed from '~/Pages/Feed';
-import Profile from '~/Pages/Profile';
-import Upload from '~/Pages/Upload';
+const Feed = lazy(() => import('~/pages/Feed'));
+const Following = lazy(() => import('~/pages/Following'));
+const Profile = lazy(() => import('~/pages/Profile'));
+const Upload = lazy(() => import('~/pages/Upload'));
 
 const publicRoutes = [
-   { path: config.routes.home, component: Home },
+   { path: config.routes.home, component: Feed },
    { path: config.routes.feed, component: Feed },
    { path: '/foryou', component: Feed },
-   { path: config.routes.login, component: Home },
+   { path: config.routes.login, component: Feed },
    { path: config.routes.following, component: Following },
    { path: config.routes.live, component: Following },
-   { path: config.routes.profile, component: Profile },
    { path: '/profile', component: Profile },
+   { path: config.routes.profile, component: Profile },
    { path: config.routes.upload, component: Upload, layout: HeaderOnly },
+   { path: '*', component: Feed },
 ];
 
 const privateRoutes = [];

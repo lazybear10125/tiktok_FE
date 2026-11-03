@@ -6,11 +6,7 @@ function HeaderOnly({ children }) {
       <div className={styles.wrapper}>
          <Header />
          <div className={styles.container}>
-            <h1 className={styles.title}>TikTok</h1>
             <div className={styles.content}>{children}</div>
-            <div className="footer">
-               <p>&copy; 2023 TikTok. All rights reserved.</p>
-            </div>
          </div>
       </div>
    );

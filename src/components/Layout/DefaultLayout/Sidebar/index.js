@@ -12,6 +12,8 @@ import {
 } from '~/components/Icons';
 import SuggestedAccounts from '~/components/SuggestedAccounts';
 import Button from '~/components/Button';
+import Image from '~/components/Image';
+import images from '~/assets/images';
 import config from '~/config';
 import { useAuth } from '~/context/AuthContext';
 import * as userServices from '~/services/userService';
@@ -50,10 +52,11 @@ function Sidebar() {
    }, [currentUser]);
 
    const userAvatar = (
-      <img
+      <Image
          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
          src="https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80"
          alt="Profile"
+         fallback={images.noImage}
       />
    );
 
@@ -62,7 +65,7 @@ function Sidebar() {
          <Menu>
             <MenuItem
                title="For You"
-               to={currentUser ? config.routes.feed : config.routes.home}
+               to={config.routes.home}
                icon={<HomeIcon />}
                activeIcon={<HomeActiveIcon />}
             />
@@ -85,8 +88,8 @@ function Sidebar() {
             </div>
          )}
 
-         <SuggestedAccounts label="Suggested accounts" data={suggestedUsers} />
-         {currentUser && <SuggestedAccounts label="Following accounts" data={followingUsers} />}
+         <SuggestedAccounts label="Suggested accounts" data={suggestedUsers} defaultVisible={5} />
+         {currentUser && <SuggestedAccounts label="Following accounts" data={followingUsers} defaultVisible={5} />}
       </aside>
    );
 }

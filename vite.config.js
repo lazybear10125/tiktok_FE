@@ -4,6 +4,22 @@ import { defineConfig, transformWithOxc } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@fortawesome')) {
+              return 'fontawesome'
+            }
+            if (id.includes('react') || id.includes('axios')) {
+              return 'vendor'
+            }
+          }
+        },
+      },
+    },
+  },
   optimizeDeps: {
     rolldownOptions: {
       moduleTypes: {
@@ -26,6 +42,8 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: '~/components/Layouts', replacement: path.resolve(import.meta.dirname, 'src/components/Layout') },
+      { find: '~/pages', replacement: path.resolve(import.meta.dirname, 'src/Pages') },
+      { find: '~/routes', replacement: path.resolve(import.meta.dirname, 'src/Routes') },
       { find: '~', replacement: path.resolve(import.meta.dirname, 'src') },
     ],
   },

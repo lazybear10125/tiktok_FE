@@ -1,0 +1,221 @@
+# NHIỆM VỤ: HOÀN THIỆN BACKEND CHO DỰ ÁN TIKTOK CLONE
+
+Bạn là một Senior Full-stack Developer chuyên về Java Spring Boot, JavaScript và MySQL.
+
+Tôi đang có một dự án TikTok Clone với:
+- Frontend: HTML, CSS, JavaScript.
+- Backend: Java Spring Boot.
+- Database: MySQL.
+- Frontend đã có giao diện và các chức năng tương tác.
+- Backend hiện tại đã có API liên quan đến tài khoản (Account), đăng ký, đăng nhập và xác thực người dùng.
+
+## 1. YÊU CẦU QUAN TRỌNG
+
+Trước khi viết code, hãy đọc và phân tích toàn bộ source code hiện tại của dự án.
+
+Kiểm tra:
+- Cấu trúc thư mục Frontend và Backend.
+- Các API đã được triển khai.
+- Các Entity, DTO, Repository, Service, Controller.
+- Cấu trúc Database và các bảng hiện tại.
+- Cách Frontend gọi API.
+- Cơ chế xác thực JWT và phân quyền.
+- Những chức năng đã hoàn thành và chưa hoàn thành.
+
+KHÔNG:
+- Viết lại toàn bộ dự án.
+- Xóa hoặc làm hỏng các chức năng hiện có.
+- Tạo API trùng lặp.
+- Thay đổi giao diện Frontend nếu không cần thiết.
+- Tạo dữ liệu giả thay cho dữ liệu thực.
+- Tự ý thay đổi cấu trúc Database khi chưa kiểm tra quan hệ hiện tại.
+
+## 2. PHÁT TRIỂN CÁC MODULE BACKEND
+
+### Module 1: Video Management
+- Upload video từ máy tính.
+- Upload video lên Cloudinary hoặc dịch vụ lưu trữ phù hợp.
+- Lưu URL video, thumbnail, caption, hashtag, thời gian đăng vào MySQL.
+- Lấy danh sách video.
+- Lấy video theo ID.
+- Chỉnh sửa caption.
+- Xóa video (chỉ chủ sở hữu).
+- Phân trang danh sách video.
+- Tăng lượt xem video.
+
+### Module 2: Like
+- Like video.
+- Unlike video.
+- Kiểm tra người dùng đã like hay chưa.
+- Đếm tổng số lượt like.
+- Ngăn chặn like trùng lặp.
+
+### Module 3: Follow
+- Follow người dùng.
+- Unfollow người dùng.
+- Lấy danh sách Followers.
+- Lấy danh sách Following.
+- Đếm số người theo dõi.
+- Ngăn chặn tự follow và follow trùng.
+
+### Module 4: Comment
+- Thêm bình luận video.
+- Sửa bình luận.
+- Xóa bình luận.
+- Trả lời bình luận.
+- Lấy danh sách bình luận.
+- Phân trang bình luận.
+- Đếm số lượng bình luận.
+- Chỉ chủ sở hữu mới được sửa hoặc xóa bình luận của mình.
+
+### Module 5: Video Feed
+Xây dựng hai luồng video:
+- For You: Video đề xuất.
+- Following: Video từ những người đang theo dõi.
+
+Yêu cầu:
+- Cuộn video vô hạn (Infinite Scroll).
+- Phân trang bằng Pageable hoặc Cursor Pagination.
+- Không tải toàn bộ video cùng lúc.
+- Sắp xếp video hợp lý.
+- Có thể mở rộng thuật toán đề xuất trong tương lai.
+
+### Module 6: Favorite
+- Lưu video yêu thích.
+- Bỏ lưu video.
+- Lấy danh sách video đã lưu.
+- Kiểm tra trạng thái đã lưu.
+
+### Module 7: Search
+- Tìm kiếm người dùng.
+- Tìm kiếm video.
+- Tìm kiếm theo username, caption, hashtag.
+- Hỗ trợ phân trang.
+- Tối ưu truy vấn Database.
+
+### Module 8: Notification
+- Thông báo khi có người like video.
+- Thông báo khi có người comment.
+- Thông báo khi có người follow.
+- Đánh dấu đã đọc/chưa đọc.
+- Lấy danh sách thông báo.
+- Đếm thông báo chưa đọc.
+
+### Module 9: Profile
+- Lấy thông tin hồ sơ cá nhân.
+- Cập nhật avatar.
+- Cập nhật username, bio.
+- Lấy danh sách video của người dùng.
+- Lấy số lượng followers, following, likes.
+
+## 3. THIẾT KẾ DATABASE
+
+Kiểm tra Database hiện có và bổ sung các bảng cần thiết.
+
+Các bảng dự kiến:
+- users
+- videos
+- likes
+- follows
+- comments
+- favorites
+- notifications
+- hashtags
+- video_hashtags
+- video_views
+
+Thiết kế:
+- Primary Key.
+- Foreign Key.
+- Unique Constraint.
+- Index cho các trường thường xuyên tìm kiếm.
+- Ràng buộc tránh dữ liệu trùng lặp.
+- Quan hệ One-to-Many và Many-to-Many hợp lý.
+
+Không tạo bảng trùng với bảng đã tồn tại.
+
+## 4. YÊU CẦU API
+
+Mỗi module phải có đầy đủ:
+- Entity.
+- DTO Request.
+- DTO Response.
+- Repository.
+- Service.
+- ServiceImpl nếu dự án đang sử dụng mô hình này.
+- Controller.
+- Validation.
+- Exception Handling.
+
+API phải:
+- Sử dụng RESTful API.
+- Trả về JSON thống nhất.
+- Có HTTP Status Code phù hợp.
+- Kiểm tra quyền truy cập.
+- Xử lý lỗi rõ ràng.
+- Không để lộ thông tin nhạy cảm.
+
+## 5. KẾT NỐI FRONTEND VỚI BACKEND
+
+Đây là yêu cầu rất quan trọng.
+
+Không chỉ tạo API mà phải kết nối thực tế với Frontend JavaScript hiện tại.
+
+Hãy:
+- Kiểm tra các nút bấm và chức năng trên giao diện.
+- Kết nối API cho từng chức năng.
+- Sử dụng Fetch API hoặc cấu trúc gọi API hiện có.
+- Tự động đính kèm JWT khi cần.
+- Xử lý loading.
+- Xử lý lỗi API.
+- Cập nhật giao diện sau khi API thành công.
+- Đồng bộ trạng thái Like, Follow, Comment.
+- Đảm bảo video tải và phát được từ Backend.
+- Giữ nguyên phong cách UI hiện tại.
+
+## 6. BẢO MẬT VÀ HIỆU NĂNG
+
+- Sử dụng Spring Security.
+- Tận dụng JWT hiện có.
+- Phân quyền USER và ADMIN.
+- Kiểm tra quyền sở hữu video và bình luận.
+- Validate dữ liệu đầu vào.
+- Giới hạn dung lượng file upload.
+- Kiểm tra định dạng video.
+- Tối ưu truy vấn tránh N+1.
+- Sử dụng DTO thay vì trả Entity trực tiếp.
+- Cấu hình CORS phù hợp.
+- Không hardcode mật khẩu hoặc API Key.
+
+## 7. KIỂM THỬ
+
+Sau khi hoàn thành từng module:
+- Build Backend.
+- Kiểm tra lỗi compile.
+- Kiểm tra kết nối MySQL.
+- Kiểm thử API bằng Postman hoặc công cụ tương đương.
+- Kiểm tra Frontend gọi API.
+- Kiểm tra các trường hợp lỗi.
+- Kiểm tra quyền truy cập bằng nhiều tài khoản.
+
+## 8. QUY TRÌNH THỰC HIỆN
+
+Thực hiện theo thứ tự:
+
+1. Phân tích source code hiện tại.
+2. Báo cáo những chức năng đã có và còn thiếu.
+3. Đề xuất kế hoạch triển khai.
+4. Phát triển từng module.
+5. Kết nối API với Frontend.
+6. Chạy thử và sửa lỗi.
+7. Tổng kết các API đã hoàn thành.
+
+Ưu tiên triển khai:
+Video → Comment → Feed → Favorite → View → Notification → Profile → Admin.
+
+Không dừng lại ở việc đưa ra kế hoạch hoặc ví dụ code. Hãy trực tiếp chỉnh sửa, tạo file và triển khai trên source code hiện có.
+
+Nếu gặp lỗi, hãy chủ động phân tích và sửa lỗi. Không tự ý xóa chức năng cũ để né lỗi.
+
+MỤC TIÊU CUỐI CÙNG:
+Biến dự án hiện tại thành một TikTok Clone hoạt động thực tế, trong đó Frontend JavaScript kết nối với Backend Java Spring Boot và MySQL, có thể đăng video, xem video, tương tác, theo dõi, tìm kiếm và quản lý tài khoản.

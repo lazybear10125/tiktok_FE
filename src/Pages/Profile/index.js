@@ -20,6 +20,7 @@ import {
 import Image from '~/components/Image';
 import Button from '~/components/Button';
 import { Wrapper as PopperWrapper } from '~/components/Popper';
+import { useAuth } from '~/context/AuthContext';
 import * as userServices from '~/services/userService';
 import ShareMenu from './ShareMenu';
 import EditProfileModal from './EditProfileModal';
@@ -37,6 +38,7 @@ const formatCount = (count) => {
 };
 
 function Profile() {
+   const { currentUser, openLoginModal } = useAuth();
    let { nickname } = useParams();
 
    // Khi truy cập /profile hoặc không có nickname, mặc định mở profile cá nhân ('bear')
@@ -61,7 +63,8 @@ function Profile() {
    const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
    const isMyProfile =
-      cleanNickname.toLowerCase() === 'bear' || cleanNickname.toLowerCase() === 'profile' || !!user?.is_personal;
+      !!currentUser &&
+      (cleanNickname.toLowerCase() === 'bear' || cleanNickname.toLowerCase() === 'profile' || !!user?.is_personal);
 
    useEffect(() => {
       let isMounted = true;
@@ -109,6 +112,11 @@ function Profile() {
    }, [activeTab, loading]);
 
    const handleToggleFollow = () => {
+      if (!currentUser) {
+         openLoginModal();
+         return;
+      }
+
       if (isFollowed) {
          setIsFollowed(false);
          setFollowersCount((prev) => Math.max(0, prev - 1));
@@ -116,6 +124,21 @@ function Profile() {
          setIsFollowed(true);
          setFollowersCount((prev) => prev + 1);
       }
+   };
+
+   const handleActionRequiresAuth = () => {
+      if (!currentUser) {
+         openLoginModal();
+         return;
+      }
+   };
+
+   const handleOpenEditModal = () => {
+      if (!currentUser) {
+         openLoginModal();
+         return;
+      }
+      setIsEditModalOpen(true);
    };
 
    const handleSaveProfile = (updatedUser) => {
@@ -136,11 +159,11 @@ function Profile() {
                   </button>
                ) : (
                   <>
-                     <button className={cx('share-item')}>
+                     <button className={cx('share-item')} onClick={handleActionRequiresAuth}>
                         <FontAwesomeIcon icon={faFlag} className={cx('share-icon')} />
                         <span className={cx('share-title')}>Report</span>
                      </button>
-                     <button className={cx('share-item')}>
+                     <button className={cx('share-item')} onClick={handleActionRequiresAuth}>
                         <FontAwesomeIcon icon={faBan} className={cx('share-icon')} />
                         <span className={cx('share-title')}>Block</span>
                      </button>
@@ -212,7 +235,7 @@ function Profile() {
                {/* Action Buttons */}
                <div className={cx('actions-row')}>
                   {isMyProfile ? (
-                     <button className={cx('edit-btn')} onClick={() => setIsEditModalOpen(true)}>
+                     <button className={cx('edit-btn')} onClick={handleOpenEditModal}>
                         <FontAwesomeIcon icon={faPenToSquare} className={cx('edit-icon')} />
                         <span>Edit profile</span>
                      </button>
@@ -300,17 +323,12 @@ function Profile() {
                   <div className={cx('empty-icon-circle')}>
                      <FontAwesomeIcon icon={faFilm} />
                   </div>
-                  <h4 className={cx('empty-title')}>{isMyProfile ? 'Upload your first video' : 'No content'}</h4>
+                  <h4 className={cx('empty-title')}>No content</h4>
                   <p className={cx('empty-subtitle')}>
                      {isMyProfile
                         ? 'Your videos will appear here once you post them.'
                         : 'This user has not published any videos yet.'}
                   </p>
-                  {isMyProfile && (
-                     <Button primary to="/upload" className={cx('upload-action-btn')}>
-                        Upload video
-                     </Button>
-                  )}
                </div>
             )}
 
@@ -348,7 +366,7 @@ function Profile() {
          </div>
 
          {/* Edit Profile Modal */}
-         {isEditModalOpen && (
+         {isEditModalOpen && isMyProfile && (
             <EditProfileModal user={user} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveProfile} />
          )}
 

@@ -5,7 +5,7 @@ import { faCircleCheck } from '@fortawesome/free-solid-svg-icons';
 import { Link } from 'react-router-dom';
 
 import { Wrapper as PopperWrapper } from '~/components/Popper';
-import AccountPreview from './AccountPreview/AccountPreview';
+import AccountPreview from './AccountPreview';
 import Image from '~/components/Image';
 import styles from './SuggestedAccounts.module.scss';
 
