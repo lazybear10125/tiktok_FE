@@ -4,11 +4,14 @@
    position: sticky;
    top: var(--default-layout-header-height);
    height: calc(100vh - var(--default-layout-header-height));
-   overflow-y: overlay;
+   overflow-y: hidden;
    overscroll-behavior: contain;
    flex-shrink: 0;
 
-   // Tùy chỉnh thanh cuộn: ẩn mặc định, chỉ hiện khi rê chuột vào Sidebar
+   &:hover {
+      overflow-y: overlay;
+   }
+
    &::-webkit-scrollbar {
       width: 6px;
    }
@@ -30,7 +33,6 @@
       background: rgba(22, 24, 35, 0.3);
    }
 
-   // Hỗ trợ Firefox
    scrollbar-width: thin;
    scrollbar-color: transparent transparent;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import classNames from 'classnames/bind';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -9,62 +9,130 @@ import {
    faShare,
    faCircleCheck,
    faPlus,
+   faPlay,
+   faVolumeXmark,
+   faVolumeHigh,
 } from '@fortawesome/free-solid-svg-icons';
 
 import styles from './Feed.module.scss';
 import Image from '~/components/Image';
 import images from '~/assets/images';
+import * as videoServices from '~/services/videoService';
 import * as userServices from '~/services/userService';
+import { useAuth } from '~/context/AuthContext';
+import CommentsPopup from './CommentsPopup';
 
 const cx = classNames.bind(styles);
 
-const IMAGES = [
-   'https://imgs.search.brave.com/mRl5uSOXOUmjNX-qJAO_wEu6Oi8tVuy2JvsI5N2jV3U/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9pbWFn/ZXMucGV4ZWxzLmNv/bS9waG90b3MvMzcw/NDYwOTYvcGV4ZWxz/LXBob3RvLTM3MDQ2/MDk2L2ZyZWUtcGhv/dG8tb2YtY29uLWQt/bmctci1wLWJvbmct/Y2F5LXRyb25nLWFu/aC1zYW5nLWJhbi1t/YWktdGhhbmgtYmlu/aC5qcGVnP2NzPXRp/bnlzcmdiJmRwcj0x/Jnc9NTAw',
-   'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
-   'https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?auto=format&fit=crop&w=600&q=80',
-   'https://imgs.search.brave.com/SdCdBxiFL2anQMUUTPR5-P4LAAZYcfgY2ZTG6MHZeI0/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9tZWRp/YS5tYWduaWZpYy5j/b20vaW1hZ2VzL2hv/bWUvdG9vbHMvZ2Vu/ZXJhdGUtYW4taW1h/Z2Uud2VicA',
-   'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=600&q=80',
-   'https://imgs.search.brave.com/sbkshREKL5ppke8E2vtsqWicDAzMwgPnROCjPz3lVz8/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9jaGlt/dmlldDM2MC5jb20v/d3AtY29udGVudC91/cGxvYWRzLzIwMjUv/MTIvdGlldS12aWVt/LTUuanBn',
-   'https://imgs.search.brave.com/BRv5EbWjzUTOHBDNEPiWGB0_eUohu6kCMP6eQuKtPyA/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9jaGlt/dmlldDM2MC5jb20v/d3AtY29udGVudC91/cGxvYWRzLzIwMjUv/MTIvdGlldS12aWVt/LWRhdS1waGEtdGh1/b25nLWtodW5nLTE1/LmpwZw',
-   'https://imgs.search.brave.com/JpvVnCt0EDLxEEvM8iivRxHUArDY2ho9NXrIj2MIbp8/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9pbWFn/ZXMucGV4ZWxzLmNv/bS9waG90b3MvMjc0/MDQyODMvcGV4ZWxz/LXBob3RvLTI3NDA0/MjgzL2ZyZWUtcGhv/dG8tb2YtcGhvbmct/Yy1uaC10aGllbi1u/aGllbi1uLWMtY2Fu/aC1kLW5nLmpwZWc_/Y3M9dGlueXNyZ2Im/ZHByPTEmdz01MDA',
-   'https://imgs.search.brave.com/5pgeN2pRhnzo1nQmTXNbHK9UfvlI0SEBnyszfy8u5AY/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9pLnBp/bmltZy5jb20vb3Jp/Z2luYWxzLzkxLzVm/LzUyLzkxNWY1MjJk/ZDc0MmRlYjM0ZDky/YzVkYmNhOTllZDVk/LmpwZw',
-   'https://imgs.search.brave.com/-i12FBmfxfjaQntEMOP-kJzLudxwMatcMKgXVzGF4zE/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9waHVr/aWVubmlsbGtpbi5j/b20vd3AtY29udGVu/dC91cGxvYWRzLzIw/MjYvMDMvYW5oLW5h/cnV0by0yLTIuanBn',
+const FOR_YOU_IMAGES = [
+   'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1511447333015-45b65e60f6d5?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1518495973542-4542c06a5843?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1433086966358-54859d0ed716?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&h=1000&q=80',
+   'https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=600&h=1000&q=80',
 ];
 
 function Feed() {
+   const { currentUser, openLoginModal } = useAuth();
    const [feedPosts, setFeedPosts] = useState([]);
    const [currentIndex, setCurrentIndex] = useState(0);
    const [likedList, setLikedList] = useState({});
+   const [isPlaying, setIsPlaying] = useState(true);
+   const [isMuted, setIsMuted] = useState(true);
+   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+   const [videoErrorMap, setVideoErrorMap] = useState({});
+   const videoRef = useRef(null);
 
-   // Lấy danh sách tài khoản đề xuất CHƯA follow (is_followed: false)
+   const handleToggleComments = () => {
+      setIsCommentsOpen((prev) => !prev);
+   };
+
+   const handleVideoError = (id) => {
+      setVideoErrorMap((prev) => ({ ...prev, [id]: true }));
+   };
+
+   // Lấy kết hợp vài video từ API và rất nhiều bài post ảnh từ API users
    useEffect(() => {
-      userServices
-         .getSuggested({ page: 1, perPage: 20 })
-         .then((users) => {
-            if (users && users.length > 0) {
-               // Chỉ lấy các tài khoản người dùng chưa follow
-               const notFollowedUsers = users.filter((u) => !u.is_followed);
-               const list = notFollowedUsers.length > 0 ? notFollowedUsers : users;
+      let isMounted = true;
 
-               const posts = list.map((user, idx) => ({
-                  id: user.id,
-                  user,
-                  image: IMAGES[idx % IMAGES.length],
-                  caption: user.bio || `${user.full_name} chia sẻ khoảnh khắc thú vị trên For You #fyp #foryou`,
-               }));
-               setFeedPosts(posts);
+      Promise.all([
+         videoServices.getVideos({ type: 'for-you', page: 1 }).catch(() => []),
+         userServices.getSuggested({ page: 1, perPage: 30 }).catch(() => []),
+      ]).then(([videos, users]) => {
+         if (!isMounted) return;
+
+         // Lấy vài video từ API (3 video)
+         const videoPosts = (videos || []).slice(0, 3).map((video) => ({
+            id: `video-${video.id}`,
+            type: 'video',
+            user: video.user,
+            video_url: video.video_file
+               ? `https://tiktok-api-pq2d.onrender.com/videos/${video.video_file}`
+               : null,
+            image: null,
+            caption: video.description || `${video.user?.full_name} trên For You #fyp`,
+         }));
+
+         // Lấy danh sách bài post ảnh từ API users/suggested
+         const candidateUsers = (users || []).filter((u) => !u.is_followed);
+         const userList = candidateUsers.length >= 10 ? candidateUsers : users || [];
+
+         const imagePosts = userList.slice(0, 20).map((user, idx) => ({
+            id: `img-${user.id}-${idx}`,
+            type: 'image',
+            user,
+            video_url: null,
+            image: FOR_YOU_IMAGES[idx % FOR_YOU_IMAGES.length],
+            caption: user.bio || `${user.full_name} chia sẻ khoảnh khắc thú vị trên For You #fyp`,
+         }));
+
+         // Xen kẽ: 1 Video -> 3 Ảnh -> 1 Video -> 3 Ảnh -> 1 Video -> các ảnh còn lại
+         const combined = [];
+         let vIdx = 0;
+         let iIdx = 0;
+
+         while (vIdx < videoPosts.length || iIdx < imagePosts.length) {
+            if (vIdx < videoPosts.length) {
+               combined.push(videoPosts[vIdx++]);
             }
-         })
-         .catch((err) => console.error('Lỗi lấy feed For You:', err));
+            for (let k = 0; k < 3 && iIdx < imagePosts.length; k++) {
+               combined.push(imagePosts[iIdx++]);
+            }
+         }
+
+         if (combined.length > 0) {
+            setFeedPosts(combined);
+         }
+      });
+
+      return () => {
+         isMounted = false;
+      };
    }, []);
 
-   // Fallback nếu API chưa về hoặc trống thì dùng danh sách ảnh IMAGES
+   // Fallback nếu API chưa về hoặc trống
    const currentPost =
       feedPosts.length > 0
          ? feedPosts[currentIndex]
          : {
               id: currentIndex,
-              image: IMAGES[currentIndex % IMAGES.length],
+              video_url: null,
+              image: FOR_YOU_IMAGES[0],
               user: {
                  id: currentIndex,
                  nickname: 'tiktok_creator',
@@ -72,11 +140,11 @@ function Feed() {
                  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
                  tick: true,
               },
-              caption: 'Khám phá video thịnh hành trên For You hôm nay! #trending',
+              caption: 'Khám phá hình ảnh và video thịnh hành trên For You hôm nay! #trending',
            };
 
    const currentAuthor = currentPost.user;
-   const totalItems = feedPosts.length > 0 ? feedPosts.length : IMAGES.length;
+   const totalItems = feedPosts.length > 0 ? feedPosts.length : FOR_YOU_IMAGES.length;
 
    const isLiked = !!likedList[currentIndex];
 
@@ -87,20 +155,37 @@ function Feed() {
       }));
    };
 
+   const handleTogglePlay = () => {
+      if (!videoRef.current) return;
+      if (videoRef.current.paused) {
+         videoRef.current.play();
+         setIsPlaying(true);
+      } else {
+         videoRef.current.pause();
+         setIsPlaying(false);
+      }
+   };
+
    const handlePrev = () => {
+      setIsPlaying(true);
       setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
    };
 
    const handleNext = () => {
+      setIsPlaying(true);
       setCurrentIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
    };
 
-   // Hỗ trợ phím mũi tên Lên / Xuống để chuyển ảnh
+   // Hỗ trợ phím mũi tên Lên / Xuống để chuyển video (ngăn chặn cuộn sidebar mặc định)
    useEffect(() => {
       const handleKeyDown = (e) => {
          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setIsPlaying(true);
             setCurrentIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setIsPlaying(true);
             setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
          }
       };
@@ -112,16 +197,52 @@ function Feed() {
       };
    }, [totalItems]);
 
+   const hasVideo = !!currentPost.video_url && !videoErrorMap[currentPost.id];
+
    return (
       <div className={cx('wrapper')}>
          <div className={cx('container')}>
             <div className={cx('image-frame')}>
-               <Image
-                  src={currentPost.image}
-                  alt={currentAuthor.full_name}
-                  className={cx('image')}
-                  fallback={images.noImage}
-               />
+               {hasVideo ? (
+                  <video
+                     ref={videoRef}
+                     key={currentPost.video_url}
+                     src={currentPost.video_url}
+                     className={cx('video')}
+                     autoPlay
+                     loop
+                     muted={isMuted}
+                     playsInline
+                     onClick={handleTogglePlay}
+                     onError={() => handleVideoError(currentPost.id)}
+                  />
+               ) : (
+                  <Image
+                     src={currentPost.image}
+                     alt={currentAuthor.full_name}
+                     className={cx('image')}
+                     fallback={images.noImage}
+                  />
+               )}
+
+               {/* Nút Play hiển thị ở giữa khi video bị Pause */}
+               {hasVideo && !isPlaying && (
+                  <div className={cx('play-overlay')}>
+                     <FontAwesomeIcon icon={faPlay} />
+                  </div>
+               )}
+
+               {/* Nút bật/tắt âm thanh góc trên bên phải */}
+               {hasVideo && (
+                  <button
+                     type="button"
+                     className={cx('mute-btn')}
+                     onClick={() => setIsMuted((prev) => !prev)}
+                     title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+                  >
+                     <FontAwesomeIcon icon={isMuted ? faVolumeXmark : faVolumeHigh} />
+                  </button>
+               )}
 
                {/* Thông tin tài khoản hiển thị tĩnh, không click chuyển trang profile */}
                <div className={cx('overlay-info')}>
@@ -156,7 +277,11 @@ function Feed() {
                      <FontAwesomeIcon icon={faHeart} />
                   </button>
 
-                  <button className={cx('action-btn')} title="Bình luận">
+                  <button
+                     className={cx('action-btn', { 'comment-active': isCommentsOpen })}
+                     onClick={handleToggleComments}
+                     title="Bình luận"
+                  >
                      <FontAwesomeIcon icon={faCommentDots} />
                   </button>
 
@@ -166,11 +291,34 @@ function Feed() {
                </div>
             </div>
 
+            {/* Comments Panel: mở trượt sang bên phải video */}
+            <div className={cx('comments-panel', { open: isCommentsOpen })}>
+               <CommentsPopup
+                  isOpen={isCommentsOpen}
+                  onClose={() => setIsCommentsOpen(false)}
+                  post={currentPost}
+                  currentUser={currentUser}
+                  openLoginModal={openLoginModal}
+               />
+            </div>
+
             <div className={cx('navigation')}>
-               <button className={cx('nav-btn')} onClick={handlePrev} title="Lên">
+               <button
+                  type="button"
+                  className={cx('nav-btn')}
+                  onClick={handlePrev}
+                  onMouseDown={(e) => e.preventDefault()}
+                  title="Up"
+               >
                   <FontAwesomeIcon icon={faChevronUp} />
                </button>
-               <button className={cx('nav-btn')} onClick={handleNext} title="Xuống">
+               <button
+                  type="button"
+                  className={cx('nav-btn')}
+                  onClick={handleNext}
+                  onMouseDown={(e) => e.preventDefault()}
+                  title="Down"
+               >
                   <FontAwesomeIcon icon={faChevronDown} />
                </button>
             </div>

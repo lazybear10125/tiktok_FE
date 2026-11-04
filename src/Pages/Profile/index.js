@@ -47,6 +47,13 @@ function Profile() {
    }
 
    const cleanNickname = nickname.replace(/^@/, '');
+   const isBearNickname =
+      cleanNickname.toLowerCase() === 'bear' ||
+      cleanNickname.toLowerCase() === 'profile' ||
+      cleanNickname.toLowerCase() === 'me';
+
+   const BEAR_AVATAR =
+      'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80';
 
    const [user, setUser] = useState(null);
    const [loading, setLoading] = useState(true);
@@ -64,7 +71,12 @@ function Profile() {
 
    const isMyProfile =
       !!currentUser &&
-      (cleanNickname.toLowerCase() === 'bear' || cleanNickname.toLowerCase() === 'profile' || !!user?.is_personal);
+      (isBearNickname || !!user?.is_personal || user?.nickname?.toLowerCase() === 'bear');
+
+   const avatarSrc =
+      isMyProfile || isBearNickname || user?.is_personal || user?.nickname?.toLowerCase() === 'bear'
+         ? BEAR_AVATAR
+         : user?.avatar;
 
    useEffect(() => {
       let isMounted = true;
@@ -76,6 +88,9 @@ function Profile() {
             if (!isMounted) return;
 
             if (userData) {
+               if (isBearNickname || userData.is_personal || userData.nickname?.toLowerCase() === 'bear') {
+                  userData.avatar = BEAR_AVATAR;
+               }
                setUser(userData);
                setIsFollowed(!!userData.is_followed);
                setFollowersCount(userData.followers_count || 0);
@@ -95,7 +110,7 @@ function Profile() {
       return () => {
          isMounted = false;
       };
-   }, [cleanNickname]);
+   }, [cleanNickname, isBearNickname]);
 
    useEffect(() => {
       let currentTabRef;
@@ -232,7 +247,7 @@ function Profile() {
          {/* User Header */}
          <div className={cx('header')}>
             <div className={cx('avatar-wrapper')}>
-               <Image className={cx('avatar')} src={user.avatar} alt={user.nickname} />
+               <Image className={cx('avatar')} src={avatarSrc} alt={user.nickname} />
             </div>
 
             <div className={cx('info')}>
@@ -381,7 +396,11 @@ function Profile() {
 
          {/* Edit Profile Modal */}
          {isEditModalOpen && isMyProfile && (
-            <EditProfileModal user={user} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveProfile} />
+            <EditProfileModal
+               user={{ ...user, avatar: avatarSrc }}
+               onClose={() => setIsEditModalOpen(false)}
+               onSave={handleSaveProfile}
+            />
          )}
 
          {/* Toast Notification */}

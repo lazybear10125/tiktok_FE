@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import classNames from 'classnames/bind';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
    faCircleXmark,
@@ -75,8 +75,45 @@ const MENU_ITEMS = [
    },
 ];
 
+const normalizeStr = (str) =>
+   (str || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+const rankSearchResults = (results, query) => {
+   if (!query || !results?.length) return results || [];
+   const q = normalizeStr(query.trim());
+
+   return [...results].sort((a, b) => {
+      const nickA = normalizeStr(a.nickname);
+      const nickB = normalizeStr(b.nickname);
+      const nameA = normalizeStr(a.full_name);
+      const nameB = normalizeStr(b.full_name);
+
+      const getScore = (nick, name) => {
+         if (nick.startsWith(q)) return 5;
+         if (name.startsWith(q)) return 4;
+         const words = name.split(/\s+/);
+         if (words.some((w) => w.startsWith(q))) return 3;
+         if (nick.includes(q)) return 2;
+         if (name.includes(q)) return 1;
+         return 0;
+      };
+
+      const scoreA = getScore(nickA, nameA);
+      const scoreB = getScore(nickB, nameB);
+
+      if (scoreA !== scoreB) {
+         return scoreB - scoreA;
+      }
+      return 0;
+   });
+};
+
 function Header() {
    const { currentUser, login, logout } = useAuth();
+   const navigate = useNavigate();
 
    const userMenu = [
       {
@@ -118,7 +155,7 @@ function Header() {
 
       const fetchApi = async () => {
          setLoading(true);
-         const result = await searchServices.search(debouncedValue);
+         const result = await searchServices.search(debouncedValue, 'more');
          setSearchResult(result || []);
          setLoading(false);
       };
@@ -143,6 +180,15 @@ function Header() {
       setShowResult(false);
    };
 
+   const handleSearchSubmit = (e) => {
+      e?.preventDefault();
+      const trimmed = searchValue.trim();
+      if (trimmed) {
+         setShowResult(false);
+         navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+      }
+   };
+
    const handleMenuChange = (menuItem) => {
       switch (menuItem.type) {
          case 'language':
@@ -154,6 +200,9 @@ function Header() {
             break;
       }
    };
+
+   const sortedResults = rankSearchResults(searchResult, debouncedValue);
+   const visibleResults = sortedResults.slice(0, 5);
 
    return (
       <header className={cx('wrapper')}>
@@ -169,9 +218,17 @@ function Header() {
                   <div className={cx('search-result')} tabIndex="-1" {...attrs}>
                      <PopperWrapper>
                         <h4 className={cx('search-title')}>Accounts</h4>
-                        {searchResult.map((result) => (
-                           <AccountItem key={result.id} data={result} />
+                        {visibleResults.map((result) => (
+                           <AccountItem key={result.id} data={result} onClick={() => setShowResult(false)} />
                         ))}
+                        <Link
+                           to={`/search?q=${encodeURIComponent(searchValue.trim())}`}
+                           className={cx('search-more')}
+                           onClick={() => setShowResult(false)}
+                        >
+                           <FontAwesomeIcon icon={faMagnifyingGlass} className={cx('search-more-icon')} />
+                           <span>See all results for "{searchValue}"</span>
+                        </Link>
                      </PopperWrapper>
                   </div>
                )}
@@ -185,6 +242,11 @@ function Header() {
                      spellCheck={false}
                      onChange={handleChange}
                      onFocus={() => setShowResult(true)}
+                     onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                           handleSearchSubmit(e);
+                        }
+                     }}
                   />
                   {!!searchValue && !loading && (
                      <button className={cx('clear')} onMouseDown={(e) => e.preventDefault()} onClick={handleClear}>
@@ -193,7 +255,7 @@ function Header() {
                   )}
                   {loading && <FontAwesomeIcon className={cx('loading')} icon={faSpinner} />}
 
-                  <button className={cx('search-btn')}>
+                  <button className={cx('search-btn')} onClick={handleSearchSubmit}>
                      <FontAwesomeIcon icon={faMagnifyingGlass} />
                   </button>
                </div>
@@ -234,8 +296,9 @@ function Header() {
                         <Image
                            className={cx('user-avatar')}
                            src={
-                              currentUser?.avatar ||
-                              'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80'
+                              currentUser?.nickname === 'bear' || !currentUser?.avatar
+                                 ? 'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80'
+                                 : currentUser.avatar
                            }
                            alt={currentUser?.full_name || 'Bear'}
                            fallback={images.noImage}

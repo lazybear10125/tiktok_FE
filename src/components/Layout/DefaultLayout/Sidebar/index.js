@@ -51,12 +51,34 @@ function Sidebar() {
       }
    }, [currentUser]);
 
+   // Cập nhật danh sách Following accounts ở sidebar ngay lập tức khi follow/unfollow
+   useEffect(() => {
+      const handleFollowingChange = (e) => {
+         const { nickname, isFollowed, user } = e.detail || {};
+         setFollowingUsers((prev) => {
+            if (!isFollowed) {
+               return prev.filter((u) => u.nickname !== nickname);
+            }
+            if (user && !prev.some((u) => u.nickname === nickname)) {
+               return [user, ...prev];
+            }
+            return prev;
+         });
+      };
+
+      window.addEventListener('following-changed', handleFollowingChange);
+      return () => {
+         window.removeEventListener('following-changed', handleFollowingChange);
+      };
+   }, []);
+
    const userAvatar = (
       <Image
          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
          src={
-            currentUser?.avatar ||
-            'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80'
+            currentUser?.nickname === 'bear' || !currentUser?.avatar
+               ? 'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80'
+               : currentUser.avatar
          }
          alt={currentUser?.full_name || 'Profile'}
          fallback={images.noImage}

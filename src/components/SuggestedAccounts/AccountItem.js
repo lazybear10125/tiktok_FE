@@ -29,6 +29,8 @@ function AccountItem({ data }) {
             delay={[800, 0]}
             offset={[-20, 0]}
             placement="bottom"
+            trigger="mouseenter"
+            hideOnClick={true}
             render={renderPreview}
          >
             <Link to={`/@${data.nickname}`} className={cx('account-item')}>

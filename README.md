@@ -19,3 +19,22 @@
    - Scrollbar: custom thanh cuộn mỏng (sidebar hover, menu)
    - Fixed header
    - Feed actions: position absolute
+
+6. - foryou(overlay)
+7. - following(following accounts, overlay)
+8. - live(overlay, icon, view)
+9. - edit profile
+10.   - fix bug:
+         - logout không follow(container request login)
+         - logout không edit profile(container request login)
+         - view profile (/@bear)
+
+11.   - Bug:
+         - onclick profile + tab -> nảy nhiều popper acc cùng 1 lúc không ẩn đi
+         - search + onclick profile không ẩn popper search profile
+         - button ^ / ^? bỏ gắn bên siderbar
+
+12.   - fix:
+         - add trigger
+         - onclickOutside -> onClick = setShowResult(false)
+         - faChevronUp, faChevronDown loại bỏ khỏi /feed, /following, /live

@@ -32,7 +32,12 @@ export const register = async (data = {}) => {
 export const getCurrentUser = async () => {
    try {
       const res = await httpRequest.get('auth/me');
-      return res.data;
+      const data = res.data;
+      if (data && (data.nickname === 'bear' || data.is_personal)) {
+         data.avatar =
+            'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80';
+      }
+      return data;
    } catch (error) {
       console.error('getCurrentUser error:', error);
       return null;
