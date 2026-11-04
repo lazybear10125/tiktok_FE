@@ -18,34 +18,22 @@ import styles from './Feed.module.scss';
 import Image from '~/components/Image';
 import images from '~/assets/images';
 import * as videoServices from '~/services/videoService';
-import * as userServices from '~/services/userService';
 import { useAuth } from '~/context/AuthContext';
 import CommentsPopup from './CommentsPopup';
 
 const cx = classNames.bind(styles);
 
-const FOR_YOU_IMAGES = [
-   'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1511447333015-45b65e60f6d5?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1518495973542-4542c06a5843?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1433086966358-54859d0ed716?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&h=1000&q=80',
-   'https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=600&h=1000&q=80',
+// Danh sách video mẫu cho vài bài đăng dạng video
+const FOR_YOU_VIDEO_CLIPS = [
+   'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+   'https://www.w3schools.com/html/mov_bbb.mp4',
+   'https://vjs.zencdn.net/v/oceans.mp4',
+   'https://media.w3.org/2010/05/sintel/trailer.mp4',
+   'https://www.w3schools.com/tags/movie.mp4',
 ];
+
+// Danh sách tác giả phát dạng Video
+const VIDEO_AUTHORS = new Set(['sondn', 'mixigaming', 'mrbeast', 'khaby.lame', 'zachking']);
 
 function Feed() {
    const { currentUser, openLoginModal } = useAuth();
@@ -66,57 +54,55 @@ function Feed() {
       setVideoErrorMap((prev) => ({ ...prev, [id]: true }));
    };
 
-   // Lấy kết hợp vài video từ API và rất nhiều bài post ảnh từ API users
+   // Lấy 100% dữ liệu bài đăng từ Backend API (/api/videos)
    useEffect(() => {
       let isMounted = true;
 
       Promise.all([
          videoServices.getVideos({ type: 'for-you', page: 1 }).catch(() => []),
-         userServices.getSuggested({ page: 1, perPage: 30 }).catch(() => []),
-      ]).then(([videos, users]) => {
+         videoServices.getVideos({ type: 'for-you', page: 2 }).catch(() => []),
+         videoServices.getVideos({ type: 'for-you', page: 3 }).catch(() => []),
+         videoServices.getVideos({ type: 'for-you', page: 4 }).catch(() => []),
+      ]).then(([p1, p2, p3, p4]) => {
          if (!isMounted) return;
 
-         // Lấy vài video từ API (3 video)
-         const videoPosts = (videos || []).slice(0, 3).map((video) => ({
-            id: `video-${video.id}`,
-            type: 'video',
-            user: video.user,
-            video_url: video.video_file
-               ? `https://tiktok-api-pq2d.onrender.com/videos/${video.video_file}`
-               : null,
-            image: null,
-            caption: video.description || `${video.user?.full_name} trên For You #fyp`,
-         }));
+         const allApiVideos = [...(p1 || []), ...(p2 || []), ...(p3 || []), ...(p4 || [])];
 
-         // Lấy danh sách bài post ảnh từ API users/suggested
-         const candidateUsers = (users || []).filter((u) => !u.is_followed);
-         const userList = candidateUsers.length >= 10 ? candidateUsers : users || [];
+         if (allApiVideos.length > 0) {
+            let videoClipIdx = 0;
+            const normalized = allApiVideos.map((video) => {
+               const authorNick = video.user?.nickname || '';
+               const isVideoType =
+                  video.type === 'video' ||
+                  !!video.video_file ||
+                  !!video.video_url ||
+                  VIDEO_AUTHORS.has(authorNick);
 
-         const imagePosts = userList.slice(0, 20).map((user, idx) => ({
-            id: `img-${user.id}-${idx}`,
-            type: 'image',
-            user,
-            video_url: null,
-            image: FOR_YOU_IMAGES[idx % FOR_YOU_IMAGES.length],
-            caption: user.bio || `${user.full_name} chia sẻ khoảnh khắc thú vị trên For You #fyp`,
-         }));
+               const videoUrl = isVideoType
+                  ? video.video_url || FOR_YOU_VIDEO_CLIPS[videoClipIdx++ % FOR_YOU_VIDEO_CLIPS.length]
+                  : null;
 
-         // Xen kẽ: 1 Video -> 3 Ảnh -> 1 Video -> 3 Ảnh -> 1 Video -> các ảnh còn lại
-         const combined = [];
-         let vIdx = 0;
-         let iIdx = 0;
+               const imageUrl =
+                  video.image_url ||
+                  (video.image_file ? `https://tiktok-api-pq2d.onrender.com/avatars/${video.image_file}` : null) ||
+                  video.user?.avatar;
 
-         while (vIdx < videoPosts.length || iIdx < imagePosts.length) {
-            if (vIdx < videoPosts.length) {
-               combined.push(videoPosts[vIdx++]);
-            }
-            for (let k = 0; k < 3 && iIdx < imagePosts.length; k++) {
-               combined.push(imagePosts[iIdx++]);
-            }
-         }
+               return {
+                  id: video.id,
+                  type: isVideoType ? 'video' : 'image',
+                  user: video.user,
+                  video_url: videoUrl,
+                  image: imageUrl,
+                  caption: video.description || `${video.user?.full_name} trên For You #fyp`,
+                  music: video.music || 'nhạc nền - TikTok Official',
+                  likes_count: video.likes_count || 100,
+                  comments_count: video.comments_count || 50,
+                  is_liked: !!video.is_liked,
+                  created_at: video.created_at,
+               };
+            });
 
-         if (combined.length > 0) {
-            setFeedPosts(combined);
+            setFeedPosts(normalized);
          }
       });
 
@@ -132,19 +118,19 @@ function Feed() {
          : {
               id: currentIndex,
               video_url: null,
-              image: FOR_YOU_IMAGES[0],
+              image: 'https://tiktok-api-pq2d.onrender.com/avatars/sondn.jpg',
               user: {
                  id: currentIndex,
-                 nickname: 'tiktok_creator',
-                 full_name: 'TikTok Creator',
-                 avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
+                 nickname: 'sondn',
+                 full_name: 'Đặng Ngọc Sơn (Sơn Đặng)',
+                 avatar: 'https://tiktok-api-pq2d.onrender.com/avatars/sondn.jpg',
                  tick: true,
               },
               caption: 'Khám phá hình ảnh và video thịnh hành trên For You hôm nay! #trending',
            };
 
-   const currentAuthor = currentPost.user;
-   const totalItems = feedPosts.length > 0 ? feedPosts.length : FOR_YOU_IMAGES.length;
+   const currentAuthor = currentPost.user || {};
+   const totalItems = feedPosts.length > 0 ? feedPosts.length : 1;
 
    const isLiked = !!likedList[currentIndex];
 
@@ -291,7 +277,7 @@ function Feed() {
                </div>
             </div>
 
-            {/* Comments Panel: mở trượt sang bên phải video */}
+            {/* Comments Panel */}
             <div className={cx('comments-panel', { open: isCommentsOpen })}>
                <CommentsPopup
                   isOpen={isCommentsOpen}

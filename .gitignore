@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+.vercel
+
+# Backend (Separate repository)
+server/
 
 # Editor directories and files
 .vscode/*

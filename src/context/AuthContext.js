@@ -12,10 +12,10 @@ export function AuthProvider({ children }) {
 
    const [currentUser, setCurrentUser] = useState(() => {
       const stored = localStorage.getItem('isLoggedIn');
-      if (stored !== null) {
-         return stored === 'true';
+      if (stored === 'false') {
+         return false;
       }
-      return location.pathname === config.routes.feed || location.pathname === '/foryou';
+      return true;
    });
 
    const [modalConfig, setModalConfig] = useState({
@@ -24,10 +24,10 @@ export function AuthProvider({ children }) {
       description: 'Vui lòng đăng nhập để theo dõi, tương tác và trải nghiệm đầy đủ các tính năng của TikTok.',
    });
 
-   // Tự động đồng bộ thông tin tài khoản nếu đã có token
+   // Tự động tải thông tin tài khoản hiện tại từ Backend API
    useEffect(() => {
-      const token = localStorage.getItem('token');
-      if (token) {
+      const stored = localStorage.getItem('isLoggedIn');
+      if (stored !== 'false') {
          authServices
             .getCurrentUser()
             .then((userData) => {
