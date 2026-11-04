@@ -73,10 +73,7 @@ function Feed() {
             const normalized = allApiVideos.map((video) => {
                const authorNick = video.user?.nickname || '';
                const isVideoType =
-                  video.type === 'video' ||
-                  !!video.video_file ||
-                  !!video.video_url ||
-                  VIDEO_AUTHORS.has(authorNick);
+                  video.type === 'video' || !!video.video_file || !!video.video_url || VIDEO_AUTHORS.has(authorNick);
 
                const videoUrl = isVideoType
                   ? video.video_url || FOR_YOU_VIDEO_CLIPS[videoClipIdx++ % FOR_YOU_VIDEO_CLIPS.length]
@@ -224,7 +221,7 @@ function Feed() {
                      type="button"
                      className={cx('mute-btn')}
                      onClick={() => setIsMuted((prev) => !prev)}
-                     title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+                     title={isMuted ? 'Mute' : 'Unmute'}
                   >
                      <FontAwesomeIcon icon={isMuted ? faVolumeXmark : faVolumeHigh} />
                   </button>

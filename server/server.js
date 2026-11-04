@@ -25,15 +25,27 @@ app.use('/avatars', express.static(path.join(__dirname, 'public/avatars')));
 // HELPER FUNCTIONS
 // ==========================================
 const getBaseUrl = (req) => {
- const protocol = req.headers['x-forwarded-proto'] || req.protocol;
- const host = req.get('host');
- return `${protocol}://${host}`;
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.get('host');
+  return `${protocol}://${host}`;
+};
+
+const resolveMediaUrl = (fileOrUrl, baseUrl) => {
+  if (!fileOrUrl) return null;
+  if (fileOrUrl.startsWith('http://') || fileOrUrl.startsWith('https://')) {
+    return fileOrUrl;
+  }
+  return `${baseUrl}/avatars/${fileOrUrl}`;
 };
 
 const formatFeedPost = (post, baseUrl) => {
   if (!post) return null;
   const user = users.find((u) => u.id === post.user_id);
-  const image_url = post.image_file ? `${baseUrl}/avatars/${post.image_file}` : (user ? `${baseUrl}/avatars/${user.avatar_file}` : null);
+  const image_url = post.image_url
+    ? post.image_url
+    : post.image_file
+    ? resolveMediaUrl(post.image_file, baseUrl)
+    : (user ? (user.avatar_url || resolveMediaUrl(user.avatar_file, baseUrl)) : null);
 
   return {
     ...post,
@@ -45,9 +57,11 @@ const formatFeedPost = (post, baseUrl) => {
 const formatLive = (live, baseUrl) => {
   if (!live) return null;
   const user = users.find((u) => u.id === live.user_id);
-  const cover_url = live.image_file
-    ? `${baseUrl}/avatars/${live.image_file}`
-    : (user ? `${baseUrl}/avatars/${user.avatar_file}` : null);
+  const cover_url = live.cover_url
+    ? live.cover_url
+    : live.image_file
+    ? resolveMediaUrl(live.image_file, baseUrl)
+    : (user ? (user.avatar_url || resolveMediaUrl(user.avatar_file, baseUrl)) : null);
 
   return {
     ...live,
@@ -57,17 +71,17 @@ const formatLive = (live, baseUrl) => {
 };
 
 const formatUser = (user, baseUrl) => {
- if (!user) return null;
- const avatar = user.avatar_url
- ? user.avatar_url
- : user.avatar_file
- ? `${baseUrl}/avatars/${user.avatar_file}`
- : `${baseUrl}/avatars/default.jpg`;
+  if (!user) return null;
+  const avatar = user.avatar_url
+    ? user.avatar_url
+    : user.avatar_file
+    ? resolveMediaUrl(user.avatar_file, baseUrl)
+    : `${baseUrl}/avatars/default.jpg`;
 
- return {
- ...user,
- avatar
- };
+  return {
+    ...user,
+    avatar
+  };
 };
 
 // Chuẩn hóa tiếng Việt không dấu để tìm kiếm thông minh

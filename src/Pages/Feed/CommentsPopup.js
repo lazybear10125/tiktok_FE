@@ -108,7 +108,8 @@ const CREATOR_MOCK_COMMENTS = {
          user: {
             nickname: 'lebong95',
             full_name: 'Lê Bống (Lê Xuân Anh)',
-            avatar: 'https://tiktok-api-pq2d.onrender.com/avatars/lebong95.jpg',
+            avatar:
+               'https://imgs.search.brave.com/ASwACbM1V02IRDTo3gRpUShfV9jeLpFGqukIrFIRimQ/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9kYW52/aWV0LmV4LWNkbi5j/b20vZmlsZXMvZjEv/Mjk2MjMxNTY5ODQ5/MTkyNDQ4LzIwMjUv/Mi84LzQ3NjE2MTEz/Mjk0MDU2MDc0MDYx/NjIyODcyNjY5Njkx/MDcxOTY3MTcyMDU0/bi0xNzM5MDM2MzEx/MDQ1ODcwNTU5NjUu/anBn',
             tick: true,
          },
          comment: 'Năng lượng quá cô gái ơi, cháy lên nào 🔥🔥',

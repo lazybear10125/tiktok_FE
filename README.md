@@ -38,3 +38,21 @@
          - add trigger
          - onclickOutside -> onClick = setShowResult(false)
          - faChevronUp, faChevronDown loại bỏ khỏi /feed, /following, /live
+13.   - search
+         - search-more (See all results for 'text')
+         - tabs-container
+      - cmt
+         - onClick cmt -> popper comments
+         - popper comments (avt, text, accounts(không có onClick -> profile))
+         - comments (add comments, reply, like)
+         - foryou, following use cmt (live không có)
+         * bug: popper cmt đè Header
+14.   - Following
+         - follow sugested accounts -> + img or video -> /following
+         - unfollow -> - img or video /following
+15.   - video
+         - add mute-btn
+         - Mute, Unmute
+         * bug: chưa add up down mute (âm thanh bị )
+
+#### api nhiều data load chậm
