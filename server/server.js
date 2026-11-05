@@ -7,6 +7,7 @@ const users = require('./data/users');
 const videos = require('./data/videos');
 const comments = require('./data/comments');
 const lives = require('./data/lives');
+const notifications = require('./data/notifications');
 
 const app = express();
 
@@ -82,6 +83,185 @@ const formatUser = (user, baseUrl) => {
     ...user,
     avatar
   };
+};
+
+const getAuthUser = (req) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const parts = token.split('.');
+      if (parts.length >= 2) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload.id) {
+          const user = users.find((u) => u.id === payload.id);
+          if (user) return user;
+        }
+        if (payload.nickname) {
+          const user = users.find((u) => u.nickname.toLowerCase() === payload.nickname.toLowerCase());
+          if (user) return user;
+        }
+      }
+    } catch (e) {
+      // Ignore token parsing error
+    }
+  }
+  // Fallback to Bear or first user
+  return users.find((u) => u.nickname === 'bear') || users[0];
+};
+
+const formatRelativeTime = (dateInput) => {
+  if (!dateInput) return '';
+  if (typeof dateInput === 'string' && dateInput.includes('ago')) return dateInput;
+
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return dateInput;
+
+  const now = new Date();
+  const diffMs = now - date;
+  if (diffMs < 0) return 'Just now';
+
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  const diffWeek = Math.floor(diffDay / 7);
+
+  if (diffSec < 60) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffDay < 7) return `${diffDay}d ago`;
+  if (diffWeek < 4) return `${diffWeek}w ago`;
+  return `${Math.floor(diffDay / 30)}mo ago`;
+};
+
+const formatNotification = (notif, baseUrl) => {
+  if (!notif) return null;
+  const actor = notif.actor_id ? users.find((u) => u.id === notif.actor_id) : null;
+  const video = notif.video_id ? videos.find((v) => v.id === notif.video_id) : null;
+
+  let videoThumb = null;
+  if (video) {
+    videoThumb =
+      video.thumb_url ||
+      (video.image_url
+        ? video.image_url
+        : video.image_file
+        ? resolveMediaUrl(video.image_file, baseUrl)
+        : null);
+  }
+  if (!videoThumb && ['like', 'comment', 'mention', 'reply'].includes(notif.type.toLowerCase())) {
+    videoThumb =
+      'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=120&q=80';
+  }
+
+  const actorUser = actor
+    ? {
+        id: actor.id,
+        nickname: actor.nickname,
+        full_name: actor.full_name,
+        avatar: formatUser(actor, baseUrl).avatar,
+        tick: !!actor.tick,
+        is_followed: !!actor.is_followed,
+      }
+    : {
+        id: 0,
+        nickname: 'tiktok_vn',
+        full_name: 'TikTok Official',
+        avatar:
+          'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=100&q=80',
+        tick: true,
+        is_followed: false,
+      };
+
+  const normalizedType = notif.type.toLowerCase();
+
+  return {
+    id: notif.id,
+    notificationId: notif.id,
+    recipient_id: notif.recipient_id,
+    recipientId: notif.recipient_id,
+    actor_id: notif.actor_id,
+    actorId: notif.actor_id,
+    actorUsername: actorUser.nickname,
+    actorAvatar: actorUser.avatar,
+    actorFullName: actorUser.full_name,
+    type: normalizedType,
+    content: notif.content,
+    video_id: notif.video_id,
+    videoId: notif.video_id,
+    video_thumb: videoThumb,
+    videoThumbnail: videoThumb,
+    comment_id: notif.comment_id,
+    commentId: notif.comment_id,
+    is_read: !!notif.is_read,
+    isRead: !!notif.is_read,
+    is_following: !!actorUser.is_followed,
+    created_at: notif.created_at,
+    createdAt: notif.created_at,
+    time: formatRelativeTime(notif.created_at),
+    user: actorUser,
+  };
+};
+
+const createNotification = ({
+  recipient_id,
+  actor_id,
+  type,
+  content,
+  video_id = null,
+  comment_id = null,
+}) => {
+  if (!recipient_id || !actor_id) return null;
+  if (recipient_id === actor_id) return null; // Không gửi thông báo cho chính mình
+
+  const normalizedType = type.toLowerCase();
+
+  // Kiểm tra trùng lặp chưa đọc cho cùng sự kiện
+  const existing = notifications.find(
+    (n) =>
+      n.recipient_id === recipient_id &&
+      n.actor_id === actor_id &&
+      n.type.toLowerCase() === normalizedType &&
+      n.video_id === video_id &&
+      n.comment_id === comment_id &&
+      !n.is_read
+  );
+  if (existing) {
+    existing.created_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    return existing;
+  }
+
+  const newId = notifications.length > 0 ? Math.max(...notifications.map((n) => n.id)) + 1 : 1;
+  const newNotif = {
+    id: newId,
+    recipient_id,
+    actor_id,
+    type: normalizedType,
+    video_id: video_id || null,
+    comment_id: comment_id || null,
+    content: content || '',
+    is_read: false,
+    created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+  };
+
+  notifications.unshift(newNotif);
+  return newNotif;
+};
+
+const removeNotification = ({ recipient_id, actor_id, type, video_id = null }) => {
+  const normalizedType = type.toLowerCase();
+  const index = notifications.findIndex(
+    (n) =>
+      n.recipient_id === recipient_id &&
+      n.actor_id === actor_id &&
+      n.type.toLowerCase() === normalizedType &&
+      (!video_id || n.video_id === video_id) &&
+      !n.is_read
+  );
+  if (index !== -1) {
+    notifications.splice(index, 1);
+  }
 };
 
 // Chuẩn hóa tiếng Việt không dấu để tìm kiếm thông minh
@@ -384,31 +564,54 @@ app.get('/api/users/:nickname/videos', handleGetUserVideos);
 // 5. FOLLOW & UNFOLLOW USER
 // ==========================================
 const handleFollow = (req, res) => {
- const baseUrl = getBaseUrl(req);
- const param = req.params.id || req.params.nickname;
- const user = findUserByParam(param);
+  const baseUrl = getBaseUrl(req);
+  const param = req.params.id || req.params.nickname;
+  const user = findUserByParam(param);
 
- if (!user) return res.status(404).json({ message: 'User not found' });
+  if (!user) return res.status(404).json({ message: 'User not found' });
 
- if (!user.is_followed) {
- user.is_followed = true;
- user.followers_count += 1;
- }
- res.json({ data: formatUser(user, baseUrl), message: 'Followed successfully' });
+  const currentUser = getAuthUser(req);
+
+  if (!user.is_followed) {
+    user.is_followed = true;
+    user.followers_count += 1;
+  }
+
+  // Tạo thông báo FOLLOW cho người được theo dõi
+  if (user.id !== currentUser.id) {
+    createNotification({
+      recipient_id: user.id,
+      actor_id: currentUser.id,
+      type: 'follow',
+      content: 'started following you',
+    });
+  }
+
+  res.json({ data: formatUser(user, baseUrl), message: 'Followed successfully' });
 };
 
 const handleUnfollow = (req, res) => {
- const baseUrl = getBaseUrl(req);
- const param = req.params.id || req.params.nickname;
- const user = findUserByParam(param);
+  const baseUrl = getBaseUrl(req);
+  const param = req.params.id || req.params.nickname;
+  const user = findUserByParam(param);
 
- if (!user) return res.status(404).json({ message: 'User not found' });
+  if (!user) return res.status(404).json({ message: 'User not found' });
 
- if (user.is_followed) {
- user.is_followed = false;
- user.followers_count = Math.max(0, user.followers_count - 1);
- }
- res.json({ data: formatUser(user, baseUrl), message: 'Unfollowed successfully' });
+  const currentUser = getAuthUser(req);
+
+  if (user.is_followed) {
+    user.is_followed = false;
+    user.followers_count = Math.max(0, user.followers_count - 1);
+  }
+
+  // Xóa thông báo FOLLOW chưa đọc tương ứng
+  removeNotification({
+    recipient_id: user.id,
+    actor_id: currentUser.id,
+    type: 'follow',
+  });
+
+  res.json({ data: formatUser(user, baseUrl), message: 'Unfollowed successfully' });
 };
 
 app.post('/api/users/:id/follow', handleFollow);
@@ -535,29 +738,58 @@ app.post('/api/videos/:id/view', (req, res) => {
 
 // Like / Unlike Video
 app.post('/api/videos/:id/like', (req, res) => {
- const videoId = parseInt(req.params.id);
- const video = videos.find((v) => v.id === videoId);
+  const videoId = parseInt(req.params.id);
+  const video = videos.find((v) => v.id === videoId);
 
- if (!video) return res.status(404).json({ message: 'Video not found' });
+  if (!video) return res.status(404).json({ message: 'Video not found' });
 
- if (!video.is_liked) {
- video.is_liked = true;
- video.likes_count += 1;
- }
- res.json({ data: video });
+  const currentUser = getAuthUser(req);
+  const actorId = req.body?.user_id ? parseInt(req.body.user_id) : currentUser.id;
+
+  if (!video.is_liked) {
+    video.is_liked = true;
+    video.likes_count += 1;
+  }
+
+  // Tự động tạo thông báo LIKE cho chủ video (nếu không phải tự like video của mình)
+  if (video.user_id && video.user_id !== actorId) {
+    createNotification({
+      recipient_id: video.user_id,
+      actor_id: actorId,
+      type: 'like',
+      video_id: video.id,
+      content: 'liked your video',
+    });
+  }
+
+  res.json({ data: video });
 });
 
 app.post('/api/videos/:id/unlike', (req, res) => {
- const videoId = parseInt(req.params.id);
- const video = videos.find((v) => v.id === videoId);
+  const videoId = parseInt(req.params.id);
+  const video = videos.find((v) => v.id === videoId);
 
- if (!video) return res.status(404).json({ message: 'Video not found' });
+  if (!video) return res.status(404).json({ message: 'Video not found' });
 
- if (video.is_liked) {
- video.is_liked = false;
- video.likes_count = Math.max(0, video.likes_count - 1);
- }
- res.json({ data: video });
+  const currentUser = getAuthUser(req);
+  const actorId = req.body?.user_id ? parseInt(req.body.user_id) : currentUser.id;
+
+  if (video.is_liked) {
+    video.is_liked = false;
+    video.likes_count = Math.max(0, video.likes_count - 1);
+  }
+
+  // Xóa thông báo LIKE chưa đọc khi bỏ like
+  if (video.user_id) {
+    removeNotification({
+      recipient_id: video.user_id,
+      actor_id: actorId,
+      type: 'like',
+      video_id: video.id,
+    });
+  }
+
+  res.json({ data: video });
 });
 
 // ==========================================
@@ -565,53 +797,103 @@ app.post('/api/videos/:id/unlike', (req, res) => {
 // ==========================================
 // Lấy danh sách bình luận của video
 app.get('/api/videos/:id/comments', (req, res) => {
- const baseUrl = getBaseUrl(req);
- const videoId = parseInt(req.params.id);
+  const baseUrl = getBaseUrl(req);
+  const videoId = parseInt(req.params.id);
 
- const videoComments = comments.filter((c) => c.video_id === videoId);
+  const videoComments = comments.filter((c) => c.video_id === videoId);
 
- res.json({
- data: videoComments.map((comment) => {
- const user = users.find((u) => u.id === comment.user_id);
- return {
- ...comment,
- user: user ? formatUser(user, baseUrl) : null
- };
- })
- });
+  res.json({
+    data: videoComments.map((comment) => {
+      const user = users.find((u) => u.id === comment.user_id);
+      return {
+        ...comment,
+        user: user ? formatUser(user, baseUrl) : null,
+      };
+    }),
+  });
 });
 
 // Thêm bình luận vào video
 app.post('/api/videos/:id/comments', (req, res) => {
- const baseUrl = getBaseUrl(req);
- const videoId = parseInt(req.params.id);
- const video = videos.find((v) => v.id === videoId);
+  const baseUrl = getBaseUrl(req);
+  const videoId = parseInt(req.params.id);
+  const video = videos.find((v) => v.id === videoId);
 
- if (!video) {
- return res.status(404).json({ message: 'Video not found' });
- }
+  if (!video) {
+    return res.status(404).json({ message: 'Video not found' });
+  }
 
- const { comment, user_id } = req.body;
- if (!comment || !comment.trim()) {
- return res.status(400).json({ message: 'Nội dung bình luận không được rỗng' });
- }
+  const { comment, user_id, reply_to_comment_id, parent_id } = req.body;
+  if (!comment || !comment.trim()) {
+    return res.status(400).json({ message: 'Nội dung bình luận không được rỗng' });
+  }
 
- const authorId = user_id || 999;
- const author = users.find((u) => u.id === authorId) || users[0];
+  const currentUser = getAuthUser(req);
+  const authorId = user_id ? parseInt(user_id) : currentUser.id;
+  const author = users.find((u) => u.id === authorId) || users[0];
 
- const newComment = {
- id: comments.length > 0 ? Math.max(...comments.map((c) => c.id)) + 1 : 1,
- video_id: videoId,
- user_id: author.id,
- comment: comment.trim(),
- likes_count: 0,
- is_liked: false,
- created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
- updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
- };
+  const parentCommentId = reply_to_comment_id || parent_id || null;
 
- comments.unshift(newComment);
- video.comments_count = (video.comments_count || 0) + 1;
+  const newComment = {
+    id: comments.length > 0 ? Math.max(...comments.map((c) => c.id)) + 1 : 1,
+    video_id: videoId,
+    user_id: author.id,
+    parent_id: parentCommentId,
+    comment: comment.trim(),
+    likes_count: 0,
+    is_liked: false,
+    created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    updated_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+  };
+
+  comments.unshift(newComment);
+  video.comments_count = (video.comments_count || 0) + 1;
+
+  // 1. Thông báo REPLY nếu là trả lời bình luận của người khác
+  if (parentCommentId) {
+    const parentComment = comments.find((c) => c.id === parseInt(parentCommentId));
+    if (parentComment && parentComment.user_id !== author.id) {
+      createNotification({
+        recipient_id: parentComment.user_id,
+        actor_id: author.id,
+        type: 'reply',
+        video_id: video.id,
+        comment_id: newComment.id,
+        content: `replied to your comment: "${newComment.comment.slice(0, 60)}"`,
+      });
+    }
+  }
+
+  // 2. Thông báo COMMENT cho chủ video
+  if (video.user_id && video.user_id !== author.id) {
+    createNotification({
+      recipient_id: video.user_id,
+      actor_id: author.id,
+      type: 'comment',
+      video_id: video.id,
+      comment_id: newComment.id,
+      content: `commented: "${newComment.comment.slice(0, 60)}"`,
+    });
+  }
+
+  // 3. Thông báo MENTION nếu có tag @username trong bình luận
+  const mentionMatches = newComment.comment.match(/@([a-zA-Z0-9_.]+)/g);
+  if (mentionMatches) {
+    const mentionedNicks = [...new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()))];
+    mentionedNicks.forEach((nick) => {
+      const mentionedUser = findUserByParam(nick);
+      if (mentionedUser && mentionedUser.id !== author.id && mentionedUser.id !== video.user_id) {
+        createNotification({
+          recipient_id: mentionedUser.id,
+          actor_id: author.id,
+          type: 'mention',
+          video_id: video.id,
+          comment_id: newComment.id,
+          content: `mentioned you in a comment: "${newComment.comment.slice(0, 60)}"`,
+        });
+      }
+    });
+  }
 
  res.status(201).json({
  data: {
@@ -738,6 +1020,202 @@ app.post('/api/lives/:id/like', (req, res) => {
 });
 
 // ==========================================
+// 8.5. THÔNG BÁO (NOTIFICATIONS)
+// ==========================================
+// Lấy danh sách thông báo của tài khoản đang đăng nhập
+app.get('/api/notifications', (req, res) => {
+  const baseUrl = getBaseUrl(req);
+  const currentUser = getAuthUser(req);
+  const typeParam = (req.query.type || '').trim().toLowerCase();
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 20;
+
+  // Chỉ lấy thông báo của chính tài khoản đang đăng nhập
+  let userNotifs = notifications.filter((n) => n.recipient_id === currentUser.id);
+
+  if (typeParam && typeParam !== 'all') {
+    userNotifs = userNotifs.filter((n) => {
+      const t = n.type.toLowerCase();
+      if (typeParam === 'likes' || typeParam === 'like') return t === 'like';
+      if (typeParam === 'comments' || typeParam === 'comment') return t === 'comment' || t === 'reply';
+      if (typeParam === 'replies' || typeParam === 'reply') return t === 'reply';
+      if (typeParam === 'mentions' || typeParam === 'mention') return t === 'mention';
+      if (typeParam === 'followers' || typeParam === 'follow') return t === 'follow';
+      if (typeParam === 'system') return t === 'system';
+      if (typeParam === 'qa') return t === 'qa';
+      return t === typeParam;
+    });
+  }
+
+  // Sắp xếp mới nhất trước (created_at DESC hoặc id DESC)
+  userNotifs.sort(
+    (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0) || b.id - a.id
+  );
+
+  const start = (page - 1) * perPage;
+  const paginated = userNotifs.slice(start, start + perPage);
+  const unreadCount = notifications.filter(
+    (n) => n.recipient_id === currentUser.id && !n.is_read
+  ).length;
+
+  res.json({
+    data: paginated.map((n) => formatNotification(n, baseUrl)),
+    meta: {
+      pagination: {
+        total: userNotifs.length,
+        count: paginated.length,
+        per_page: perPage,
+        current_page: page,
+        total_pages: Math.ceil(userNotifs.length / perPage) || 1,
+      },
+      unread_count: unreadCount,
+      unreadCount,
+    },
+  });
+});
+
+// Lấy tổng số thông báo chưa đọc
+app.get('/api/notifications/unread-count', (req, res) => {
+  const currentUser = getAuthUser(req);
+  const unreadCount = notifications.filter(
+    (n) => n.recipient_id === currentUser.id && !n.is_read
+  ).length;
+
+  res.json({
+    data: {
+      unread_count: unreadCount,
+      unreadCount,
+    },
+    unread_count: unreadCount,
+    unreadCount,
+  });
+});
+
+// Đánh dấu 1 thông báo đã đọc
+const handleMarkNotificationRead = (req, res) => {
+  const baseUrl = getBaseUrl(req);
+  const notifId = parseInt(req.params.id);
+  const currentUser = getAuthUser(req);
+
+  const notif = notifications.find((n) => n.id === notifId);
+  if (!notif) {
+    return res.status(404).json({ message: 'Notification not found' });
+  }
+
+  // Người dùng chỉ được đọc thông báo của chính mình
+  if (notif.recipient_id !== currentUser.id) {
+    return res
+      .status(403)
+      .json({ message: 'Forbidden: You cannot access other users notifications' });
+  }
+
+  notif.is_read = true;
+  res.json({
+    data: formatNotification(notif, baseUrl),
+    message: 'Notification marked as read',
+  });
+};
+
+app.put('/api/notifications/:id/read', handleMarkNotificationRead);
+app.patch('/api/notifications/:id/read', handleMarkNotificationRead);
+
+// Đánh dấu tất cả thông báo đã đọc
+const handleMarkAllNotificationsRead = (req, res) => {
+  const currentUser = getAuthUser(req);
+  notifications.forEach((n) => {
+    if (n.recipient_id === currentUser.id) {
+      n.is_read = true;
+    }
+  });
+
+  res.json({
+    message: 'All notifications marked as read',
+    unread_count: 0,
+    unreadCount: 0,
+  });
+};
+
+app.put('/api/notifications/read-all', handleMarkAllNotificationsRead);
+app.patch('/api/notifications/read-all', handleMarkAllNotificationsRead);
+
+// Xóa 1 thông báo
+app.delete('/api/notifications/:id', (req, res) => {
+  const notifId = parseInt(req.params.id);
+  const currentUser = getAuthUser(req);
+
+  const index = notifications.findIndex((n) => n.id === notifId);
+  if (index === -1) {
+    return res.status(404).json({ message: 'Notification not found' });
+  }
+
+  if (notifications[index].recipient_id !== currentUser.id) {
+    return res
+      .status(403)
+      .json({ message: 'Forbidden: You cannot delete other users notifications' });
+  }
+
+  const [deleted] = notifications.splice(index, 1);
+  res.json({
+    data: deleted,
+    message: 'Notification deleted successfully',
+  });
+});
+
+// Xóa toàn bộ thông báo của tài khoản đang đăng nhập
+app.delete('/api/notifications', (req, res) => {
+  const currentUser = getAuthUser(req);
+  const initialCount = notifications.length;
+  for (let i = notifications.length - 1; i >= 0; i--) {
+    if (notifications[i].recipient_id === currentUser.id) {
+      notifications.splice(i, 1);
+    }
+  }
+
+  res.json({
+    message: 'All notifications deleted successfully',
+    deleted_count: initialCount - notifications.length,
+  });
+});
+
+// Tạo thông báo mới (hỗ trợ thông báo hệ thống / admin / testing)
+app.post('/api/notifications', (req, res) => {
+  const baseUrl = getBaseUrl(req);
+  const currentUser = getAuthUser(req);
+  const { recipient_id, actor_id, type, content, video_id, comment_id } = req.body;
+
+  const targetRecipientId = recipient_id ? parseInt(recipient_id) : currentUser.id;
+  const targetActorId = actor_id
+    ? parseInt(actor_id)
+    : currentUser.id === targetRecipientId
+    ? 1
+    : currentUser.id;
+
+  if (!type || !content) {
+    return res.status(400).json({ message: 'type and content are required' });
+  }
+
+  const newNotif = createNotification({
+    recipient_id: targetRecipientId,
+    actor_id: targetActorId,
+    type: type.toLowerCase(),
+    content,
+    video_id: video_id ? parseInt(video_id) : null,
+    comment_id: comment_id ? parseInt(comment_id) : null,
+  });
+
+  if (!newNotif) {
+    return res.status(400).json({
+      message: 'Cannot create notification (actor and recipient cannot be the same)',
+    });
+  }
+
+  res.status(201).json({
+    data: formatNotification(newNotif, baseUrl),
+    message: 'Notification created successfully',
+  });
+});
+
+// ==========================================
 // 9. TRANG CHỦ & API DOCUMENTATION
 // ==========================================
 app.get('/', (req, res) => {
@@ -823,6 +1301,24 @@ app.get('/', (req, res) => {
  <div class="endpoint">
  <span class="tag tag-post">POST</span> <strong>Gửi bình luận mới:</strong><br/>
  <code>POST /api/videos/1/comments</code> (Body: <code>{ comment }</code>)
+ </div>
+
+ <h3 class="section-title">5. Thông báo (Notifications / Activity)</h3>
+ <div class="endpoint">
+ <span class="tag tag-get">GET</span> <strong>Danh sách thông báo người dùng:</strong><br/>
+ <a href="/api/notifications" target="_blank">/api/notifications</a> (Lọc: <code>?type=like|comment|follow|mention|system|qa</code>)
+ </div>
+ <div class="endpoint">
+ <span class="tag tag-get">GET</span> <strong>Số lượng thông báo chưa đọc:</strong><br/>
+ <a href="/api/notifications/unread-count" target="_blank">/api/notifications/unread-count</a>
+ </div>
+ <div class="endpoint">
+ <span class="tag tag-patch">PUT</span> <strong>Đánh dấu đã đọc / Đọc tất cả:</strong><br/>
+ <code>PUT /api/notifications/:id/read</code> | <code>PUT /api/notifications/read-all</code>
+ </div>
+ <div class="endpoint">
+ <span class="tag tag-delete">DELETE</span> <strong>Xóa thông báo:</strong><br/>
+ <code>DELETE /api/notifications/:id</code> | <code>DELETE /api/notifications</code>
  </div>
  </div>
  </body>

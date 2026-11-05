@@ -19,6 +19,8 @@ import { Wrapper as PopperWrapper } from '~/components/Popper';
 import { InboxIcon } from '~/components/Icons';
 import Image from '~/components/Image';
 import images from '~/assets/images';
+import * as notificationServices from '~/services/notificationService';
+import * as userServices from '~/services/userService';
 import styles from './Inbox.module.scss';
 
 const cx = classNames.bind(styles);
@@ -112,9 +114,10 @@ const INITIAL_NOTIFICATIONS = [
       id: 6,
       type: 'follow',
       user: {
-         nickname: 'f8_official',
-         full_name: 'F8 - Học Lập Trình',
-         avatar: 'https://tiktok-api-pq2d.onrender.com/avatars/sondn.jpg',
+         nickname: 'lebong95',
+         full_name: 'Lê Bống (Lê Xuân Anh)',
+         avatar:
+            'https://imgs.search.brave.com/ASwACbM1V02IRDTo3gRpUShfV9jeLpFGqukIrFIRimQ/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9kYW52/aWV0LmV4LWNkbi5j/b20vZmlsZXMvZjEv/Mjk2MjMxNTY5ODQ5/MTkyNDQ4LzIwMjUv/Mi84LzQ3NjE2MTEz/Mjk0MDU2MDc0MDYx/NjIyODcyNjY5Njkx/MDcxOTY3MTcyMDU0/bi0xNzM5MDM2MzEx/MDQ1ODcwNTU5NjUu/anBn',
          tick: true,
       },
       content: 'started following you',
@@ -166,6 +169,38 @@ function Inbox() {
    const scrollLeftRef = useRef(0);
    const hasDraggedRef = useRef(false);
 
+   // Lấy dữ liệu thông báo từ API Backend thực tế
+   const fetchNotifications = useCallback(async (tab = 'all') => {
+      try {
+         const res = await notificationServices.getNotifications({ type: tab });
+         if (res && Array.isArray(res.data) && res.data.length > 0) {
+            setNotifications(res.data);
+         }
+      } catch (err) {
+         console.error('fetchNotifications error:', err);
+      }
+   }, []);
+
+   // Fetch khi mount
+   useEffect(() => {
+      fetchNotifications('all');
+   }, [fetchNotifications]);
+
+   // Fetch khi mở dropdown hoặc đổi tab
+   useEffect(() => {
+      if (visible) {
+         fetchNotifications(activeTab);
+      }
+   }, [visible, activeTab, fetchNotifications]);
+
+   // Tự động kiểm tra cập nhật số lượng thông báo mỗi 30s
+   useEffect(() => {
+      const interval = setInterval(() => {
+         fetchNotifications(activeTab);
+      }, 30000);
+      return () => clearInterval(interval);
+   }, [activeTab, fetchNotifications]);
+
    const unreadCount = useMemo(
       () => notifications.filter((item) => !item.is_read).length,
       [notifications]
@@ -174,7 +209,7 @@ function Inbox() {
    const filteredNotifications = useMemo(() => {
       if (activeTab === 'all') return notifications;
       if (activeTab === 'likes') return notifications.filter((n) => n.type === 'like');
-      if (activeTab === 'comments') return notifications.filter((n) => n.type === 'comment');
+      if (activeTab === 'comments') return notifications.filter((n) => n.type === 'comment' || n.type === 'reply');
       if (activeTab === 'mentions') return notifications.filter((n) => n.type === 'mention');
       if (activeTab === 'followers') return notifications.filter((n) => n.type === 'follow');
       if (activeTab === 'system') return notifications.filter((n) => n.type === 'system');
@@ -193,7 +228,6 @@ function Inbox() {
 
    useEffect(() => {
       if (visible) {
-         // Check scroll when popper opens and after DOM renders
          const timer = setTimeout(() => {
             checkScroll();
          }, 50);
@@ -243,6 +277,7 @@ function Inbox() {
    const handleTabClick = (key, e) => {
       if (hasDraggedRef.current) return;
       setActiveTab(key);
+      fetchNotifications(key);
       e.currentTarget.scrollIntoView({
          behavior: 'smooth',
          inline: 'center',
@@ -250,34 +285,76 @@ function Inbox() {
       });
    };
 
-   const handleMarkAllAsRead = () => {
+   // Đánh dấu tất cả là đã đọc (PUT /api/notifications/read-all)
+   const handleMarkAllAsRead = async () => {
       setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+      try {
+         await notificationServices.markAllAsRead();
+      } catch (err) {
+         console.error('handleMarkAllAsRead error:', err);
+      }
    };
 
-   const handleItemClick = (item) => {
-      setNotifications((prev) =>
-         prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
-      );
-      if (item.user?.nickname) {
-         setVisible(false);
+   // Nhấn vào một thông báo: Đánh dấu đã đọc & điều hướng
+   const handleItemClick = async (item) => {
+      if (!item.is_read) {
+         setNotifications((prev) =>
+            prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
+         );
+         try {
+            await notificationServices.markAsRead(item.id);
+         } catch (err) {
+            console.error('markAsRead error:', err);
+         }
+      }
+
+      setVisible(false);
+
+      // Điều hướng thông minh:
+      // LIKE/COMMENT: điều hướng đến video hoặc trang feed
+      // FOLLOW: điều hướng đến trang cá nhân
+      if (item.type === 'follow' && item.user?.nickname) {
+         navigate(`/@${item.user.nickname}`);
+      } else if (item.video_id) {
+         navigate('/feed');
+      } else if (item.user?.nickname) {
          navigate(`/@${item.user.nickname}`);
       }
    };
 
-   const handleToggleFollow = (id, e) => {
+   // Nút Follow back / Following
+   const handleToggleFollow = async (item, e) => {
       e.stopPropagation();
+      const willFollow = !item.is_following;
+      const nick = item.user?.nickname;
+
       setNotifications((prev) =>
-         prev.map((item) => {
-            if (item.id === id) {
+         prev.map((n) => {
+            if (n.id === item.id) {
                return {
-                  ...item,
-                  is_following: !item.is_following,
+                  ...n,
+                  is_following: willFollow,
                   is_read: true,
                };
             }
-            return item;
+            return n;
          })
       );
+
+      try {
+         if (nick) {
+            if (willFollow) {
+               await userServices.followUser(nick);
+            } else {
+               await userServices.unfollowUser(nick);
+            }
+         }
+         if (!item.is_read) {
+            await notificationServices.markAsRead(item.id);
+         }
+      } catch (err) {
+         console.error('handleToggleFollow error:', err);
+      }
    };
 
    const renderTypeIcon = (type) => {
@@ -289,6 +366,7 @@ function Inbox() {
                </div>
             );
          case 'comment':
+         case 'reply':
             return (
                <div className={cx('type-icon', 'comment')}>
                   <FontAwesomeIcon icon={faCommentDots} />
@@ -443,7 +521,7 @@ function Inbox() {
                                     className={cx('follow-btn', {
                                        following: item.is_following,
                                     })}
-                                    onClick={(e) => handleToggleFollow(item.id, e)}
+                                    onClick={(e) => handleToggleFollow(item, e)}
                                  >
                                     {item.is_following ? 'Following' : 'Follow back'}
                                  </button>
