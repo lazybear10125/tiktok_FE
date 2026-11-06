@@ -37,7 +37,7 @@ const notifications = [
       recipient_id: 999,
       actor_id: 2,
       type: 'mention',
-      content: 'mentioned you in a comment: "Oh No!"',
+      content: 'mentioned you in a comment: "OhNo!"',
       video_id: 1,
       comment_id: 2,
       is_read: true,
