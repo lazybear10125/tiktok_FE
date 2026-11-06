@@ -54,5 +54,13 @@
          - add mute-btn
          - Mute, Unmute
          * bug: chưa add up down mute (âm thanh bị )
+16.   - fix: 
+         - popper cmt  không đè lên thanh header
+17.   - inbox:
+         -   popper Notifications
+         -   onClick Notifications -> profile
+         -   scroll ngang dọc
+18.   - profile:
+         -   list-item 
 
 #### api nhiều data load chậm
