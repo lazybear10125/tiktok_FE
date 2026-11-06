@@ -46,7 +46,7 @@
          - popper comments (avt, text, accounts(không có onClick -> profile))
          - comments (add comments, reply, like)
          - foryou, following use cmt (live không có)
-         * bug: popper cmt đè Header
+         * bug: popper cmt đè Header (Đã fix)
 14.   - Following
          - follow sugested accounts -> + img or video -> /following
          - unfollow -> - img or video /following

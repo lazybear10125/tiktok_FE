@@ -15,6 +15,7 @@ import {
    faFilm,
    faPenToSquare,
    faGear,
+   faPlay,
 } from '@fortawesome/free-solid-svg-icons';
 
 import Image from '~/components/Image';
@@ -27,6 +28,8 @@ import EditProfileModal from './EditProfileModal';
 import styles from './Profile.module.scss';
 
 const cx = classNames.bind(styles);
+
+const PLACEHOLDER_VIDEOS = Array.from({ length: 12 });
 
 const formatCount = (count) => {
    if (typeof count === 'number') {
@@ -70,8 +73,7 @@ function Profile() {
    const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
    const isMyProfile =
-      !!currentUser &&
-      (isBearNickname || !!user?.is_personal || user?.nickname?.toLowerCase() === 'bear');
+      !!currentUser && (isBearNickname || !!user?.is_personal || user?.nickname?.toLowerCase() === 'bear');
 
    const avatarSrc =
       isMyProfile || isBearNickname || user?.is_personal || user?.nickname?.toLowerCase() === 'bear'
@@ -348,16 +350,20 @@ function Profile() {
          {/* Tab Content */}
          <div className={cx('tab-content')}>
             {activeTab === 'videos' && (
-               <div className={cx('empty-tab')}>
-                  <div className={cx('empty-icon-circle')}>
-                     <FontAwesomeIcon icon={faFilm} />
-                  </div>
-                  <h4 className={cx('empty-title')}>No content</h4>
-                  <p className={cx('empty-subtitle')}>
-                     {isMyProfile
-                        ? 'Your videos will appear here once you post them.'
-                        : 'This user has not published any videos yet.'}
-                  </p>
+               <div className={cx('video-grid')}>
+                  {PLACEHOLDER_VIDEOS.map((_, index) => (
+                     <div key={index} className={cx('video-card')}>
+                        <div className={cx('video-placeholder-center')}>
+                           <FontAwesomeIcon icon={faPlay} className={cx('play-center-icon')} />
+                        </div>
+                        <div className={cx('video-card-footer')}>
+                           <div className={cx('video-views')}>
+                              <FontAwesomeIcon icon={faPlay} className={cx('views-icon')} />
+                              <span>0</span>
+                           </div>
+                        </div>
+                     </div>
+                  ))}
                </div>
             )}
 

@@ -255,6 +255,91 @@
    transition: left 0.3s ease, width 0.3s ease;
 }
 
+// Video Grid & Placeholder Frames
+.video-grid {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+   gap: 16px;
+   width: 100%;
+   padding: 16px 0 40px;
+}
+
+.video-card {
+   position: relative;
+   border: 1.5px solid rgba(22, 24, 35, 0.12);
+   border-radius: 8px;
+   aspect-ratio: 9 / 16;
+   background-color: rgba(22, 24, 35, 0.03);
+   display: flex;
+   flex-direction: column;
+   justify-content: space-between;
+   padding: 12px;
+   overflow: hidden;
+   cursor: pointer;
+   transition: all 0.2s ease-in-out;
+
+   &:hover {
+      border-color: rgba(22, 24, 35, 0.35);
+      background-color: rgba(22, 24, 35, 0.06);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+
+      .play-center-icon {
+         transform: scale(1.15);
+         color: var(--primary);
+      }
+   }
+}
+
+.video-placeholder-center {
+   flex: 1;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+}
+
+.play-center-icon {
+   font-size: 2.8rem;
+   color: rgba(22, 24, 35, 0.2);
+   transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.video-card-footer {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+}
+
+.video-views {
+   display: flex;
+   align-items: center;
+   gap: 5px;
+   font-size: 1.3rem;
+   font-weight: 600;
+   color: rgba(22, 24, 35, 0.5);
+}
+
+.views-icon {
+   font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+   .video-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 12px 0 30px;
+   }
+
+   .video-card {
+      padding: 8px;
+      border-radius: 6px;
+   }
+
+   .play-center-icon {
+      font-size: 2.2rem;
+   }
+}
+
 // Private / Empty Tab State
 .empty-tab {
    display: flex;

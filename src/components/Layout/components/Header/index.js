@@ -19,7 +19,7 @@ import Tippy from '@tippyjs/react';
 import HeadlessTippy from '@tippyjs/react/headless';
 import 'tippy.js/dist/tippy.css';
 
-import { UploadIcon, MessageIcon, InboxIcon } from '~/components/Icons';
+import { UploadIcon, MessageIcon } from '~/components/Icons';
 import Button from '~/components/Button';
 import Image from '~/components/Image';
 import { useDebounce } from '~/hooks';
@@ -30,6 +30,7 @@ import { Wrapper as PopperWrapper, Menu } from '~/components/Popper';
 import AccountItem from '~/components/AccountItem';
 import { useAuth } from '~/context/AuthContext';
 import * as searchServices from '~/services/searchService';
+import Inbox from './Inbox';
 
 const cx = classNames.bind(styles);
 
@@ -274,12 +275,7 @@ function Header() {
                            <MessageIcon />
                         </button>
                      </Tippy>
-                     <Tippy delay={[0, 50]} content="Inbox" placement="bottom">
-                        <button className={cx('action-btn')}>
-                           <InboxIcon />
-                           <span className={cx('badge')}>99+</span>
-                        </button>
-                     </Tippy>
+                     <Inbox />
                   </>
                ) : (
                   <>
