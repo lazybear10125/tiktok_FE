@@ -7,7 +7,12 @@ const users = require('./data/users');
 const videos = require('./data/videos');
 const comments = require('./data/comments');
 const lives = require('./data/lives');
-const notifications = require('./data/notifications');
+let notifications = [];
+try {
+  notifications = require('./data/notifications');
+} catch (e) {
+  notifications = [];
+}
 
 const app = express();
 

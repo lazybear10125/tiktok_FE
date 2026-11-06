@@ -49,8 +49,7 @@ const INITIAL_NOTIFICATIONS = [
       content: 'liked your video',
       time: '15m ago',
       is_read: false,
-      video_thumb:
-         'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=120&q=80',
+      video_thumb: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=120&q=80',
    },
    {
       id: 2,
@@ -64,8 +63,7 @@ const INITIAL_NOTIFICATIONS = [
       content: 'commented: "Video đỉnh quá bạn ơi, tiếp tục phát huy nhé! 🔥"',
       time: '1h ago',
       is_read: false,
-      video_thumb:
-         'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=120&q=80',
+      video_thumb: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=120&q=80',
    },
    {
       id: 3,
@@ -91,11 +89,10 @@ const INITIAL_NOTIFICATIONS = [
             'https://imgs.search.brave.com/blZB4VBWoKOlYRplFFaj5iDXMe2XMqgFFCI8SToli8U/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9jZG4u/a2llbnRodWMubmV0/LnZuL2ltYWdlcy9j/NDczZDNlMDVlYjA3/MWFkYzIwOWViNGNm/ZmVmNzMzYzUzNTQ4/NGU4ODIwYzU5NmIy/MWFiMjA3OWQzZTgw/MGI0ZjA3NDEzN2E2/NmU2OTU4MGJkMjlm/MzRkZTc1M2JjNDdj/ZTZmNjljY2I2YWYz/ZmVmMWEzMjA3MGFh/NzRmZjYzNTBiMmJl/NTZlMzY3YzM0OGJk/NjZlNDYwOTIzMmJl/MTI3MmRjOTU2ZTdj/MGIxYTUwYjM3MzVl/ZDQxNmY5N2U5YjVj/YThkMGI4YzMzYzJj/NDRlMmYwY2UwZWJm/ZjNhMDc2ZS92by1x/dW9jLWRhbi1kYW8t/bGUtcGh1b25nLWhv/YS1iYXQtbmdvLWxh/bS1kYW0tY3VvaS1I/aW5oLTguSlBH',
          tick: true,
       },
-      content: 'mentioned you in a comment: "@bear vào xem clip nhảy này hay nè!"',
+      content: 'mentioned you in a comment: "Oh No!"',
       time: '1d ago',
       is_read: true,
-      video_thumb:
-         'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=120&q=80',
+      video_thumb: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=120&q=80',
    },
    {
       id: 5,
@@ -201,10 +198,7 @@ function Inbox() {
       return () => clearInterval(interval);
    }, [activeTab, fetchNotifications]);
 
-   const unreadCount = useMemo(
-      () => notifications.filter((item) => !item.is_read).length,
-      [notifications]
-   );
+   const unreadCount = useMemo(() => notifications.filter((item) => !item.is_read).length, [notifications]);
 
    const filteredNotifications = useMemo(() => {
       if (activeTab === 'all') return notifications;
@@ -298,9 +292,7 @@ function Inbox() {
    // Nhấn vào một thông báo: Đánh dấu đã đọc & điều hướng
    const handleItemClick = async (item) => {
       if (!item.is_read) {
-         setNotifications((prev) =>
-            prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
-         );
+         setNotifications((prev) => prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n)));
          try {
             await notificationServices.markAsRead(item.id);
          } catch (err) {
@@ -344,7 +336,7 @@ function Inbox() {
                };
             }
             return n;
-         })
+         }),
       );
 
       try {
@@ -509,12 +501,8 @@ function Inbox() {
                               {/* Notification info */}
                               <div className={cx('content')}>
                                  <div className={cx('username-row')}>
-                                    <span className={cx('username')}>
-                                       {item.user.full_name || item.user.nickname}
-                                    </span>
-                                    {item.user.tick && (
-                                       <FontAwesomeIcon icon={faCircleCheck} className={cx('tick')} />
-                                    )}
+                                    <span className={cx('username')}>{item.user.full_name || item.user.nickname}</span>
+                                    {item.user.tick && <FontAwesomeIcon icon={faCircleCheck} className={cx('tick')} />}
                                  </div>
                                  <p className={cx('desc')}>{item.content}</p>
                                  <span className={cx('time')}>{item.time}</span>
@@ -533,11 +521,7 @@ function Inbox() {
                                  </button>
                               ) : item.video_thumb ? (
                                  <div className={cx('thumb-box')}>
-                                    <img
-                                       src={item.video_thumb}
-                                       alt="Video thumbnail"
-                                       className={cx('thumb')}
-                                    />
+                                    <img src={item.video_thumb} alt="Video thumbnail" className={cx('thumb')} />
                                  </div>
                               ) : null}
 
@@ -568,11 +552,7 @@ function Inbox() {
             title="Inbox"
          >
             <InboxIcon />
-            {unreadCount > 0 && (
-               <span className={cx('badge')}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-               </span>
-            )}
+            {unreadCount > 0 && <span className={cx('badge')}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
          </button>
       </HeadlessTippy>
    );
