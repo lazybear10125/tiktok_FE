@@ -115,7 +115,7 @@ function Search() {
       return () => {
          isMounted = false;
       };
-   }, [query]);
+   }, [query, currentUser]);
 
    const handleToggleFollow = async (user) => {
       if (!currentUser) {

@@ -96,9 +96,30 @@ function Profile() {
       }
    }, [currentUser]);
 
+   // Lắng nghe sự kiện Follow/Unfollow từ các component khác để cập nhật ngay lập tức
+   useEffect(() => {
+      const handleFollowingChange = (e) => {
+         const { nickname: changedNick, isFollowed: changedFollowed, resetAll } = e.detail || {};
+         if (resetAll) {
+            setIsFollowed(false);
+            return;
+         }
+         if (changedNick && cleanNickname && changedNick.toLowerCase() === cleanNickname.toLowerCase()) {
+            setIsFollowed(!!changedFollowed);
+            setFollowersCount((prev) => (changedFollowed ? prev + 1 : Math.max(0, prev - 1)));
+         }
+      };
+      window.addEventListener('following-changed', handleFollowingChange);
+      return () => window.removeEventListener('following-changed', handleFollowingChange);
+   }, [cleanNickname]);
+
    useEffect(() => {
       let isMounted = true;
-      setLoading(true);
+      // Chỉ hiện skeleton loading khi chưa có dữ liệu user
+      setUser((currentUserState) => {
+         if (!currentUserState) setLoading(true);
+         return currentUserState;
+      });
 
       const fetchData = async () => {
          try {
@@ -128,7 +149,7 @@ function Profile() {
       return () => {
          isMounted = false;
       };
-   }, [cleanNickname, isBearNickname]);
+   }, [cleanNickname, isBearNickname, currentUser]);
 
    useEffect(() => {
       let currentTabRef;

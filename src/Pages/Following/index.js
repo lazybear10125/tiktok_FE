@@ -172,7 +172,7 @@ function Following() {
       } finally {
          setLoading(false);
       }
-   }, []);
+   }, [currentUser]);
 
    useEffect(() => {
       loadFollowingData();
