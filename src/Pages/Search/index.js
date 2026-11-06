@@ -208,7 +208,7 @@ function Search() {
                </div>
                <div className={cx('account-list')}>
                   {results.map((user) => {
-                     const isFollowed = !!followingMap[user.id];
+                     const isFollowed = !!currentUser && !!followingMap[user.id];
                      return (
                         <div key={user.id} className={cx('account-card')}>
                            <Link to={`/@${user.nickname}`} className={cx('account-main')}>

@@ -22,7 +22,7 @@ const formatCount = (count) => {
 
 function AccountPreview({ data }) {
    const { currentUser, openLoginModal } = useAuth();
-   const [isFollowed, setIsFollowed] = useState(!!data.is_followed);
+   const [isFollowed, setIsFollowed] = useState(!!currentUser && !!data.is_followed);
    const [followersCount, setFollowersCount] = useState(data.followers_count ?? data.followers ?? 0);
 
    const handleToggleFollow = async () => {
@@ -50,7 +50,7 @@ function AccountPreview({ data }) {
       <div className={cx('wrapper')}>
          <div className={cx('header')}>
             <Image className={cx('avatar')} src={data.avatar} alt={data.nickname} />
-            {isFollowed ? (
+            {currentUser && isFollowed ? (
                <Button className={cx('follow-btn')} onClick={handleToggleFollow} outline>
                   <FontAwesomeIcon icon={faCheck} style={{ marginRight: 4 }} />
                   Following

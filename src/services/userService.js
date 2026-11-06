@@ -104,6 +104,10 @@ export const getSuggested = async ({ page = 1, perPage = 20 } = {}) => {
          },
       });
       if (res && Array.isArray(res.data) && res.data.length > 0) {
+         const isLoggedIn = localStorage.getItem('isLoggedIn') !== 'false' && !!localStorage.getItem('token');
+         if (!isLoggedIn) {
+            return res.data.map((u) => ({ ...u, is_followed: false }));
+         }
          return res.data;
       }
       return DEFAULT_SUGGESTED_USERS;
@@ -160,6 +164,10 @@ export const getUser = async (nickname) => {
       const res = await httpRequest.get(`users/@${cleanNickname}`);
       const data = res.data || null;
       if (data) {
+         const isLoggedIn = localStorage.getItem('isLoggedIn') !== 'false' && !!localStorage.getItem('token');
+         if (!isLoggedIn) {
+            data.is_followed = false;
+         }
          if (isBear || data.is_personal || data.nickname?.toLowerCase() === 'bear') {
             return {
                ...data,

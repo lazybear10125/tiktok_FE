@@ -79,7 +79,7 @@ function Profile() {
          ? BEAR_AVATAR
          : user?.avatar;
 
-   // Reset follow and edit state on auth-logout
+   // Reset follow and edit state on auth-logout or when currentUser is falsy
    useEffect(() => {
       const handleLogout = () => {
          setIsFollowed(false);
@@ -88,6 +88,13 @@ function Profile() {
       window.addEventListener('auth-logout', handleLogout);
       return () => window.removeEventListener('auth-logout', handleLogout);
    }, []);
+
+   useEffect(() => {
+      if (!currentUser) {
+         setIsFollowed(false);
+         setIsEditModalOpen(false);
+      }
+   }, [currentUser]);
 
    useEffect(() => {
       let isMounted = true;
@@ -103,7 +110,7 @@ function Profile() {
                   userData.avatar = BEAR_AVATAR;
                }
                setUser(userData);
-               setIsFollowed(!!userData.is_followed);
+               setIsFollowed(!!currentUser && !!userData.is_followed);
                setFollowersCount(userData.followers_count || 0);
             } else {
                setUser(null);
@@ -279,7 +286,7 @@ function Profile() {
                         <FontAwesomeIcon icon={faPenToSquare} className={cx('edit-icon')} />
                         <span>Edit profile</span>
                      </button>
-                  ) : isFollowed ? (
+                  ) : (currentUser && isFollowed) ? (
                      <button className={cx('following-btn')} onClick={handleToggleFollow}>
                         <FontAwesomeIcon icon={faCheck} />
                         <span>Following</span>

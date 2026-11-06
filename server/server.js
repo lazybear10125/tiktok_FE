@@ -496,8 +496,14 @@ const handleGetUserProfile = (req, res) => {
  return res.status(404).json({ message: 'User not found' });
  }
 
+ const formatted = formatUser(user, baseUrl);
+ const authHeader = req.headers.authorization;
+ if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.includes('null')) {
+ formatted.is_followed = false;
+ }
+
  res.json({
- data: formatUser(user, baseUrl)
+ data: formatted
  });
 };
 
