@@ -69,7 +69,7 @@
          -    scroll ngang + scroll dọc homepage bị trùng
 21.   - add
          - "behavior: smooth"
-         -        
+         - volum silder     
 
 
 
