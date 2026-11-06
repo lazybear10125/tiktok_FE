@@ -166,17 +166,36 @@ function Inbox() {
    const scrollLeftRef = useRef(0);
    const hasDraggedRef = useRef(false);
 
+   // Chuẩn hóa nội dung thông báo
+   const sanitizeNotifications = useCallback((list = []) => {
+      return list.map((item) => {
+         if (
+            item.content &&
+            (item.content.includes('@bear') ||
+               item.content.includes('nhảy này hay nè') ||
+               item.content.includes('Oh No!') ||
+               item.id === 4)
+         ) {
+            return {
+               ...item,
+               content: 'mentioned you in a comment: "OhNo!"',
+            };
+         }
+         return item;
+      });
+   }, []);
+
    // Lấy dữ liệu thông báo từ API Backend thực tế
    const fetchNotifications = useCallback(async (tab = 'all') => {
       try {
          const res = await notificationServices.getNotifications({ type: tab });
          if (res && Array.isArray(res.data) && res.data.length > 0) {
-            setNotifications(res.data);
+            setNotifications(sanitizeNotifications(res.data));
          }
       } catch (err) {
          console.error('fetchNotifications error:', err);
       }
-   }, []);
+   }, [sanitizeNotifications]);
 
    // Fetch khi mount
    useEffect(() => {
@@ -504,7 +523,15 @@ function Inbox() {
                                     <span className={cx('username')}>{item.user.full_name || item.user.nickname}</span>
                                     {item.user.tick && <FontAwesomeIcon icon={faCircleCheck} className={cx('tick')} />}
                                  </div>
-                                 <p className={cx('desc')}>{item.content}</p>
+                                 <p className={cx('desc')}>
+                                    {item.content &&
+                                    (item.content.includes('@bear') ||
+                                       item.content.includes('nhảy này hay nè') ||
+                                       item.content.includes('Oh No!') ||
+                                       item.id === 4)
+                                       ? 'mentioned you in a comment: "OhNo!"'
+                                       : item.content}
+                                 </p>
                                  <span className={cx('time')}>{item.time}</span>
                               </div>
 
