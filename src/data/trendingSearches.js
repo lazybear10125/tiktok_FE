@@ -4,8 +4,6 @@ export const CATEGORIES = [
    'Entertainment',
    'Gaming',
    'Education',
-   'Sports',
-   'Lifestyle',
 ];
 
 export const TRENDING_SEARCHES = [
@@ -39,7 +37,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 4,
       keyword: 'Lê Bống workout routine',
-      category: 'Lifestyle',
+      category: 'Education',
       rank: 4,
       searchVolume: '2.4M',
       trendPercentage: '+165%',
@@ -57,7 +55,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 6,
       keyword: 'Premier League Super Sunday',
-      category: 'Sports',
+      category: 'Entertainment',
       rank: 6,
       searchVolume: '1.9M',
       trendPercentage: '+120%',
@@ -111,7 +109,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 12,
       keyword: 'Healthy Meal Prep 7 Days',
-      category: 'Lifestyle',
+      category: 'Education',
       rank: 12,
       searchVolume: '1.2M',
       trendPercentage: '+60%',
@@ -129,7 +127,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 14,
       keyword: 'Champions League Quarter Finals',
-      category: 'Sports',
+      category: 'Entertainment',
       rank: 14,
       searchVolume: '1.05M',
       trendPercentage: '+115%',
@@ -156,7 +154,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 17,
       keyword: 'Street Food Ha Noi Night Tour',
-      category: 'Lifestyle',
+      category: 'Education',
       rank: 17,
       searchVolume: '880K',
       trendPercentage: '+45%',
@@ -174,7 +172,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 19,
       keyword: 'Korean Skincare Glass Skin',
-      category: 'Lifestyle',
+      category: 'Education',
       rank: 19,
       searchVolume: '810K',
       trendPercentage: '+55%',
@@ -183,7 +181,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 20,
       keyword: 'NBA Finals Highlights',
-      category: 'Sports',
+      category: 'Entertainment',
       rank: 20,
       searchVolume: '790K',
       trendPercentage: '+70%',
@@ -228,7 +226,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 25,
       keyword: 'Matcha Latte Art Tutorial',
-      category: 'Lifestyle',
+      category: 'Education',
       rank: 25,
       searchVolume: '640K',
       trendPercentage: '+35%',
@@ -237,7 +235,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 26,
       keyword: 'Formula 1 Grand Prix Winner',
-      category: 'Sports',
+      category: 'Entertainment',
       rank: 26,
       searchVolume: '610K',
       trendPercentage: '+80%',
@@ -273,7 +271,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 30,
       keyword: 'Running Marathon Training Plan',
-      category: 'Sports',
+      category: 'Entertainment',
       rank: 30,
       searchVolume: '510K',
       trendPercentage: '+50%',
@@ -282,7 +280,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 31,
       keyword: 'Minimalist Room Decor Aesthetic',
-      category: 'Lifestyle',
+      category: 'Education',
       rank: 31,
       searchVolume: '490K',
       trendPercentage: '+30%',
@@ -318,7 +316,7 @@ export const TRENDING_SEARCHES = [
    {
       id: 35,
       keyword: 'Badminton Trick Shots & Smash',
-      category: 'Sports',
+      category: 'Entertainment',
       rank: 35,
       searchVolume: '410K',
       trendPercentage: '+45%',
