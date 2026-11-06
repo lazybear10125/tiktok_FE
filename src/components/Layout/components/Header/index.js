@@ -26,8 +26,7 @@ import { useDebounce } from '~/hooks';
 import styles from './Header.module.scss';
 import images from '~/assets/images';
 import config from '~/config';
-import { Wrapper as PopperWrapper, Menu } from '~/components/Popper';
-import AccountItem from '~/components/AccountItem';
+import { Menu } from '~/components/Popper';
 import { useAuth } from '~/context/AuthContext';
 import * as searchServices from '~/services/searchService';
 import Inbox from './Inbox';
@@ -48,16 +47,6 @@ const MENU_ITEMS = [
       children: {
          title: 'Language',
          data: [
-            { type: 'language', code: 'en', title: 'English' },
-            { type: 'language', code: 'vi', title: 'Tiếng Việt' },
-            { type: 'language', code: 'es', title: 'Español' },
-            { type: 'language', code: 'fr', title: 'Français' },
-            { type: 'language', code: 'de', title: 'Deutsch' },
-            { type: 'language', code: 'ja', title: '日本語' },
-            { type: 'language', code: 'ko', title: '한국어' },
-            { type: 'language', code: 'zh', title: '简体中文' },
-            { type: 'language', code: 'th', title: 'ไทย' },
-            { type: 'language', code: 'id', title: 'Bahasa Indonesia' },
             { type: 'language', code: 'en', title: 'English' },
             { type: 'language', code: 'vi', title: 'Tiếng Việt' },
             { type: 'language', code: 'es', title: 'Español' },

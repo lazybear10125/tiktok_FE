@@ -26,7 +26,7 @@ import config from '~/config';
 import * as userServices from '~/services/userService';
 import * as videoServices from '~/services/videoService';
 import { useAuth } from '~/context/AuthContext';
-import CommentsPopup from '~/Pages/Feed/CommentsPopup';
+import CommentsPopup from '~/pages/Feed/CommentsPopup';
 
 const cx = classNames.bind(styles);
 
@@ -79,8 +79,6 @@ function Following() {
 
    const videoRef = useRef(null);
    const commentsPanelRef = useRef(null);
-   const lastWheelTimeRef = useRef(0);
-   const touchStartYRef = useRef(0);
 
    // Tải danh sách Following accounts & bài đăng từ Backend API
    const loadFollowingData = useCallback(async () => {

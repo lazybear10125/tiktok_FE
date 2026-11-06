@@ -12,7 +12,6 @@ import {
    faBan,
    faCheck,
    faCircleQuestion,
-   faFilm,
    faPenToSquare,
    faGear,
    faPlay,
