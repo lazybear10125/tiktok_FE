@@ -79,6 +79,16 @@ function Profile() {
          ? BEAR_AVATAR
          : user?.avatar;
 
+   // Reset follow and edit state on auth-logout
+   useEffect(() => {
+      const handleLogout = () => {
+         setIsFollowed(false);
+         setIsEditModalOpen(false);
+      };
+      window.addEventListener('auth-logout', handleLogout);
+      return () => window.removeEventListener('auth-logout', handleLogout);
+   }, []);
+
    useEffect(() => {
       let isMounted = true;
       setLoading(true);

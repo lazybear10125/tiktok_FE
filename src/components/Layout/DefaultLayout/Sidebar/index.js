@@ -54,6 +54,10 @@ function Sidebar() {
    // Cập nhật danh sách Following accounts ở sidebar ngay lập tức khi follow/unfollow
    useEffect(() => {
       const handleFollowingChange = (e) => {
+         if (e.detail?.resetAll) {
+            setFollowingUsers([]);
+            return;
+         }
          const { nickname, isFollowed, user } = e.detail || {};
          setFollowingUsers((prev) => {
             if (!isFollowed) {
@@ -70,6 +74,14 @@ function Sidebar() {
       return () => {
          window.removeEventListener('following-changed', handleFollowingChange);
       };
+   }, []);
+
+   useEffect(() => {
+      const handleLogout = () => {
+         setFollowingUsers([]);
+      };
+      window.addEventListener('auth-logout', handleLogout);
+      return () => window.removeEventListener('auth-logout', handleLogout);
    }, []);
 
    const userAvatar = (

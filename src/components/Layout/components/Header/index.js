@@ -142,14 +142,32 @@ function Header() {
    const [loading, setLoading] = useState(false);
 
    useEffect(() => {
-      setRecentSearches(getSearchHistory());
+      if (currentUser) {
+         setRecentSearches(getSearchHistory());
+      } else {
+         setRecentSearches([]);
+      }
+   }, [currentUser]);
+
+   // Reset search state on global auth-logout event
+   useEffect(() => {
+      const handleLogout = () => {
+         setRecentSearches([]);
+         setSearchResult([]);
+         setSearchValue('');
+         setShowResult(false);
+      };
+      window.addEventListener('auth-logout', handleLogout);
+      return () => window.removeEventListener('auth-logout', handleLogout);
    }, []);
 
    const handleSelectKeyword = (keyword) => {
       if (!keyword || !keyword.trim()) return;
       const trimmed = keyword.trim();
-      const updated = saveSearchHistory(trimmed);
-      setRecentSearches(updated);
+      if (currentUser) {
+         const updated = saveSearchHistory(trimmed);
+         setRecentSearches(updated);
+      }
       setSearchValue(trimmed);
       setShowResult(false);
       navigate(`/search?q=${encodeURIComponent(trimmed)}`);
@@ -206,6 +224,10 @@ function Header() {
       e?.preventDefault();
       const trimmed = searchValue.trim();
       if (trimmed) {
+         if (currentUser) {
+            const updated = saveSearchHistory(trimmed);
+            setRecentSearches(updated);
+         }
          setShowResult(false);
          navigate(`/search?q=${encodeURIComponent(trimmed)}`);
       }
@@ -261,7 +283,11 @@ function Header() {
                      onChange={handleChange}
                      onFocus={() => {
                         setShowResult(true);
-                        setRecentSearches(getSearchHistory());
+                        if (currentUser) {
+                           setRecentSearches(getSearchHistory());
+                        } else {
+                           setRecentSearches([]);
+                        }
                      }}
                      onClick={() => setShowResult(true)}
                      onKeyDown={(e) => {

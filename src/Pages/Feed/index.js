@@ -210,7 +210,27 @@ function Feed() {
    const currentAuthor = currentPost.user || {};
    const isLiked = !!likedList[currentIndex];
 
+   // Reset likedList on auth-logout or when user logs out
+   useEffect(() => {
+      const handleLogout = () => {
+         setLikedList({});
+         setIsCommentsOpen(false);
+      };
+      window.addEventListener('auth-logout', handleLogout);
+      return () => window.removeEventListener('auth-logout', handleLogout);
+   }, []);
+
+   useEffect(() => {
+      if (!currentUser) {
+         setLikedList({});
+      }
+   }, [currentUser]);
+
    const handleToggleLike = () => {
+      if (!currentUser) {
+         openLoginModal();
+         return;
+      }
       setLikedList((prev) => ({
          ...prev,
          [currentIndex]: !prev[currentIndex],

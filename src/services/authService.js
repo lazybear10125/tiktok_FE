@@ -1,5 +1,17 @@
 import * as httpRequest from '~/utils/httpRequest';
 
+export const getToken = () => {
+   return localStorage.getItem('token');
+};
+
+export const setToken = (token) => {
+   localStorage.setItem('token', token);
+};
+
+export const removeToken = () => {
+   localStorage.removeItem('token');
+};
+
 export const login = async ({ email, password } = {}) => {
    try {
       const res = await httpRequest.post('auth/login', {
@@ -7,7 +19,7 @@ export const login = async ({ email, password } = {}) => {
          password,
       });
       if (res.token) {
-         localStorage.setItem('token', res.token);
+         setToken(res.token);
       }
       return res;
    } catch (error) {
@@ -20,7 +32,7 @@ export const register = async (data = {}) => {
    try {
       const res = await httpRequest.post('auth/register', data);
       if (res.token) {
-         localStorage.setItem('token', res.token);
+         setToken(res.token);
       }
       return res;
    } catch (error) {

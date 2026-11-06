@@ -83,6 +83,14 @@ function Following() {
 
    // Tải danh sách Following accounts & bài đăng từ Backend API
    const loadFollowingData = useCallback(async () => {
+      if (!currentUser) {
+         setFollowingUsers([]);
+         setFollowingPosts([]);
+         setLikedMap({});
+         setLikesCountMap({});
+         setLoading(false);
+         return;
+      }
       setLoading(true);
       try {
          // 1. Lấy danh sách tài khoản mà User hiện tại đang Follow từ Backend API
@@ -170,9 +178,28 @@ function Following() {
       loadFollowingData();
    }, [loadFollowingData]);
 
+   useEffect(() => {
+      const handleLogout = () => {
+         setFollowingUsers([]);
+         setFollowingPosts([]);
+         setLikedMap({});
+         setLikesCountMap({});
+         setIsCommentsOpen(false);
+      };
+      window.addEventListener('auth-logout', handleLogout);
+      return () => window.removeEventListener('auth-logout', handleLogout);
+   }, []);
+
    // Lắng nghe sự kiện Follow / Unfollow từ Sidebar, Profile, Search để cập nhật ngay lập tức
    useEffect(() => {
       const handleFollowingChange = (e) => {
+         if (e.detail?.resetAll) {
+            setFollowingUsers([]);
+            setFollowingPosts([]);
+            setLikedMap({});
+            setLikesCountMap({});
+            return;
+         }
          const { nickname, isFollowed } = e.detail || {};
          if (!nickname) return;
 

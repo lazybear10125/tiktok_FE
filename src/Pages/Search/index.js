@@ -69,6 +69,15 @@ function Search() {
    const [loading, setLoading] = useState(true);
    const [followingMap, setFollowingMap] = useState({});
 
+   // Reset follow states on auth-logout
+   useEffect(() => {
+      const handleLogout = () => {
+         setFollowingMap({});
+      };
+      window.addEventListener('auth-logout', handleLogout);
+      return () => window.removeEventListener('auth-logout', handleLogout);
+   }, []);
+
    useEffect(() => {
       let isMounted = true;
       if (!query.trim()) {
@@ -77,7 +86,9 @@ function Search() {
          return;
       }
 
-      saveSearchHistory(query);
+      if (currentUser) {
+         saveSearchHistory(query);
+      }
 
       setLoading(true);
       searchServices
