@@ -58,9 +58,19 @@
          - popper cmt  không đè lên thanh header
 17.   - inbox:
          -   popper Notifications
-         -   onClick Notifications -> profile
+         -   onClick Notifications -> profile + wrapper article
          -   scroll ngang dọc
 18.   - profile:
          -   list-item 
+19.   - search: (hardcode không có sẵn data, khi search thì sẽ lưu store)
+         -   Recent
+         -   trendfing search
+20.   - bug:
+         -    scroll ngang + scroll dọc homepage bị trùng
+21.   - add
+         - "behavior: smooth"
+         -        
+
+
 
 #### api nhiều data load chậm
