@@ -4,10 +4,10 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
    faClock,
    faXmark,
-   faArrowTrendUp,
-   faArrowTrendDown,
    faFire,
    faMagnifyingGlass,
+   faChevronDown,
+   faChevronUp,
 } from '@fortawesome/free-solid-svg-icons';
 
 import AccountItem from '~/components/AccountItem';
@@ -50,6 +50,8 @@ function SearchPopper({
    onSelectAccount,
 }) {
    const [selectedCategory, setSelectedCategory] = useState('All');
+   const [isRecentExpanded, setIsRecentExpanded] = useState(false);
+   const RECENT_COLLAPSED_COUNT = 3;
 
    const trimmedQuery = searchValue.trim();
    const isTyping = trimmedQuery.length > 0;
@@ -116,7 +118,10 @@ function SearchPopper({
                         </button>
                      </div>
                      <ul className={cx('recent-list')}>
-                        {recentSearches.map((keyword, index) => (
+                        {(isRecentExpanded
+                           ? recentSearches
+                           : recentSearches.slice(0, RECENT_COLLAPSED_COUNT)
+                        ).map((keyword, index) => (
                            <li
                               key={`${keyword}-${index}`}
                               className={cx('recent-item')}
@@ -140,6 +145,19 @@ function SearchPopper({
                            </li>
                         ))}
                      </ul>
+                     {recentSearches.length > RECENT_COLLAPSED_COUNT && (
+                        <button
+                           className={cx('recent-toggle-btn')}
+                           onMouseDown={(e) => e.preventDefault()}
+                           onClick={() => setIsRecentExpanded((prev) => !prev)}
+                        >
+                           <span>{isRecentExpanded ? 'See less' : 'See all'}</span>
+                           <FontAwesomeIcon
+                              icon={isRecentExpanded ? faChevronUp : faChevronDown}
+                              className={cx('toggle-icon')}
+                           />
+                        </button>
+                     )}
                   </div>
                )}
 
@@ -191,22 +209,6 @@ function SearchPopper({
 
                            <div className={cx('trending-right')}>
                               <span className={cx('search-volume')}>{item.searchVolume}</span>
-                              <span
-                                 className={cx('trend-badge', {
-                                    up: item.trendDirection === 'up',
-                                    down: item.trendDirection === 'down',
-                                 })}
-                              >
-                                 <FontAwesomeIcon
-                                    icon={
-                                       item.trendDirection === 'up'
-                                          ? faArrowTrendUp
-                                          : faArrowTrendDown
-                                    }
-                                    className={cx('trend-icon')}
-                                 />
-                                 <span>{item.trendPercentage}</span>
-                              </span>
                            </div>
                         </li>
                      ))}
