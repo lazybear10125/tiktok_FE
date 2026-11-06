@@ -54,23 +54,23 @@
          - add mute-btn
          - Mute, Unmute
          * bug: chưa add up down mute (âm thanh bị )
-16.   - fix: 
-         - popper cmt  không đè lên thanh header
+16.   - fix:
+         - popper cmt không đè lên thanh header
 17.   - inbox:
-         -   popper Notifications
-         -   onClick Notifications -> profile + wrapper article
-         -   scroll ngang dọc
+         - popper Notifications
+         - onClick Notifications -> profile + wrapper article
+         - scroll ngang dọc
 18.   - profile:
-         -   list-item 
+         - list-item
 19.   - search: (hardcode không có sẵn data, khi search thì sẽ lưu store)
-         -   Recent
-         -   trendfing search
+         - Recent
+         - trendfing search
 20.   - bug:
-         -    scroll ngang + scroll dọc homepage bị trùng
+         -     croll ngang + scroll dọc homepage bị trùng (ok)
+         -     Logout ra vẫn thấy các account được follow (ok)
+         -     logout hiện chưa follow giữu nguyên profile đó là login thì nó vẫn hiện là chưa follow(trước khi logout đã follow rồi) (ok)
 21.   - add
          - "behavior: smooth"
-         - volum silder     
-
-
+         - volum silder
 
 #### api nhiều data load chậm

@@ -54,6 +54,7 @@ function Feed() {
    const commentsPanelRef = useRef(null);
    const lastWheelTimeRef = useRef(0);
    const touchStartYRef = useRef(0);
+   const touchStartXRef = useRef(0);
 
    useEffect(() => {
       if (videoRef.current) {
@@ -182,17 +183,9 @@ function Feed() {
       }
    }, [location.state, feedPosts]);
 
-   // Bật/tắt Comments Popup kèm cuộn mượt đến phần bình luận
+   // Bật/tắt Comments Popup
    const handleToggleComments = () => {
-      setIsCommentsOpen((prev) => {
-         const next = !prev;
-         if (next) {
-            setTimeout(() => {
-               commentsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 60);
-         }
-         return next;
-      });
+      setIsCommentsOpen((prev) => !prev);
    };
 
    // Fallback nếu API chưa về hoặc trống
@@ -264,33 +257,61 @@ function Feed() {
       setCurrentIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
    }, [totalItems]);
 
-   // Cuộn danh sách video bằng chuột (Mouse wheel)
-   const handleWheel = useCallback(
-      (e) => {
+   // Cuộn danh sách video bằng chuột (Mouse wheel):
+   // Tách biệt hoàn toàn cuộn ngang và cuộn dọc; chặn cuộn trang dọc khi đang đổi video
+   useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const handleWheel = (e) => {
          // Nếu con trỏ nằm trong bảng bình luận thì để bảng bình luận cuộn tự nhiên
          if (e.target.closest(`.${cx('comments-panel')}`)) return;
+
+         // Nếu đang tương tác với volume slider
+         if (e.target.closest('input[type="range"]') || e.target.closest(`.${cx('volume-control')}`)) return;
+
+         // Nếu thao tác cuộn ngang lớn hơn hoặc bằng cuộn dọc (ví dụ swipe 2 ngón trackpad ngang), bỏ qua không chuyển video
+         if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
 
          const now = Date.now();
          if (now - lastWheelTimeRef.current < 400) return;
 
          if (e.deltaY > 25) {
+            if (e.cancelable) e.preventDefault();
             lastWheelTimeRef.current = now;
             handleNext();
          } else if (e.deltaY < -25) {
+            if (e.cancelable) e.preventDefault();
             lastWheelTimeRef.current = now;
             handlePrev();
          }
-      },
-      [handleNext, handlePrev],
-   );
+      };
 
-   // Cuộn danh sách video bằng cảm ứng (Touch swipe) trên mobile
+      container.addEventListener('wheel', handleWheel, { passive: false });
+      return () => {
+         container.removeEventListener('wheel', handleWheel);
+      };
+   }, [handleNext, handlePrev]);
+
+   // Cuộn danh sách video bằng cảm ứng (Touch swipe) trên mobile / tablet
    const handleTouchStart = (e) => {
-      touchStartYRef.current = e.touches[0].clientY;
+      if (e.touches && e.touches[0]) {
+         touchStartYRef.current = e.touches[0].clientY;
+         touchStartXRef.current = e.touches[0].clientX;
+      }
    };
 
    const handleTouchEnd = (e) => {
+      // Bỏ qua nếu touch bên trong comments panel
+      if (e.target.closest(`.${cx('comments-panel')}`)) return;
+      if (!e.changedTouches || !e.changedTouches[0]) return;
+
+      const diffX = touchStartXRef.current - e.changedTouches[0].clientX;
       const diffY = touchStartYRef.current - e.changedTouches[0].clientY;
+
+      // Nếu vuốt ngang dominant hơn vuốt dọc: bỏ qua để tránh trùng thao tác cuộn
+      if (Math.abs(diffX) >= Math.abs(diffY)) return;
+
       if (Math.abs(diffY) > 40) {
          if (diffY > 0) {
             handleNext();
@@ -299,6 +320,8 @@ function Feed() {
          }
       }
    };
+
+
 
    // Hỗ trợ phím mũi tên Lên / Xuống để chuyển video
    useEffect(() => {
@@ -326,7 +349,6 @@ function Feed() {
       <div
          ref={containerRef}
          className={cx('wrapper')}
-         onWheel={handleWheel}
          onTouchStart={handleTouchStart}
          onTouchEnd={handleTouchEnd}
       >
