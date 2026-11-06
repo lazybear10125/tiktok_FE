@@ -311,12 +311,18 @@ function Inbox() {
       setVisible(false);
 
       // Điều hướng thông minh:
-      // LIKE/COMMENT: điều hướng đến video hoặc trang feed
+      // LIKE/COMMENT: điều hướng đến video hoặc trang feed kèm cuộn mượt
       // FOLLOW: điều hướng đến trang cá nhân
       if (item.type === 'follow' && item.user?.nickname) {
          navigate(`/@${item.user.nickname}`);
       } else if (item.video_id) {
-         navigate('/feed');
+         const shouldOpenComments = ['comment', 'reply', 'mention'].includes(item.type);
+         navigate('/feed', {
+            state: {
+               targetVideoId: item.video_id,
+               openComments: shouldOpenComments,
+            },
+         });
       } else if (item.user?.nickname) {
          navigate(`/@${item.user.nickname}`);
       }

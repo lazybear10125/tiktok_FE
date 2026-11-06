@@ -3,12 +3,14 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { publicRoutes } from './Routes';
 import { DefaultLayout } from '~/components/Layout';
 import { AuthProvider } from '~/context/AuthContext';
+import { ScrollToTopOnRouteChange } from '~/components/ScrollToTop';
 
 function App() {
    return (
       <Router>
          <AuthProvider>
             <div className="app">
+               <ScrollToTopOnRouteChange />
                <Routes>
                   {publicRoutes.map((route, index) => {
                      const Page = route.component;

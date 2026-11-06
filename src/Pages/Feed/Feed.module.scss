@@ -4,6 +4,7 @@
    align-items: center;
    padding: 40px 0;
    width: 100%;
+   scroll-behavior: smooth;
 }
 
 .container {
@@ -11,11 +12,13 @@
    align-items: center;
    justify-content: center;
    gap: 24px;
+   scroll-behavior: smooth;
 }
 
 .comments-panel {
    display: none;
    flex-shrink: 0;
+   scroll-behavior: smooth;
 
    &.open {
       display: block;
@@ -30,6 +33,7 @@
    overflow: hidden;
    background-color: #000;
    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+   transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .image {
@@ -37,6 +41,7 @@
    height: 100%;
    object-fit: cover;
    display: block;
+   animation: feedFadeIn 0.25s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .video {
@@ -45,6 +50,18 @@
    object-fit: cover;
    display: block;
    cursor: pointer;
+   animation: feedFadeIn 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes feedFadeIn {
+   from {
+      opacity: 0.85;
+      transform: scale(0.99);
+   }
+   to {
+      opacity: 1;
+      transform: scale(1);
+   }
 }
 
 .play-overlay {
@@ -84,14 +101,13 @@
    }
 }
 
-// Thông tin tài khoản chưa follow đè góc dưới bên trái ảnh
+// Thông tin tài khoản đè góc dưới bên trái ảnh
 .overlay-info {
    position: absolute;
    bottom: 0;
    left: 0;
    right: 76px;
    padding: 24px 18px 20px;
-   // background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.85) 100%);
    color: #fff;
    z-index: 2;
    display: flex;
@@ -190,7 +206,7 @@
    flex-direction: column;
    align-items: center;
    justify-content: center;
-   gap: 20px; // Căn đều khoảng cách giữa 3 icon
+   gap: 20px;
    z-index: 2;
 }
 
@@ -211,7 +227,6 @@
       transform 0.2s ease,
       opacity 0.2s ease;
 
-   // Hiệu ứng hover cho các icon
    &:hover {
       transform: scale(1.18);
       opacity: 0.9;
@@ -221,12 +236,10 @@
       transform: scale(0.95);
    }
 
-   // Tim ấn vào thì hiện lên màu đỏ
    &.active {
       color: #fe2c55;
    }
 
-   // Comment đang mở thì đổi màu nổi bật
    &.comment-active {
       color: #fe2c55;
       transform: scale(1.1);

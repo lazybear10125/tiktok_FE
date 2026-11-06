@@ -78,6 +78,9 @@ function Following() {
    const [videoErrorMap, setVideoErrorMap] = useState({});
 
    const videoRef = useRef(null);
+   const commentsPanelRef = useRef(null);
+   const lastWheelTimeRef = useRef(0);
+   const touchStartYRef = useRef(0);
 
    // Tải danh sách Following accounts & bài đăng từ Backend API
    const loadFollowingData = useCallback(async () => {
@@ -545,7 +548,7 @@ function Following() {
             </div>
 
             {/* Comments Popup: Trượt mở sang bên phải video */}
-            <div className={cx('comments-panel', { open: isCommentsOpen })}>
+            <div ref={commentsPanelRef} className={cx('comments-panel', { open: isCommentsOpen })}>
                <CommentsPopup
                   isOpen={isCommentsOpen}
                   onClose={() => setIsCommentsOpen(false)}

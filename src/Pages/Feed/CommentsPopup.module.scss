@@ -50,6 +50,10 @@
 .body {
    flex: 1;
    overflow-y: auto;
+   scroll-behavior: smooth;
+   overscroll-behavior: contain;
+   scrollbar-width: thin;
+   scrollbar-color: rgba(22, 24, 35, 0.15) transparent;
    padding: 16px 20px;
 
    &::-webkit-scrollbar {

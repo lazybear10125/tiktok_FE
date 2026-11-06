@@ -19,6 +19,49 @@
 
 html {
    font-size: 62.5%;
+   scroll-behavior: smooth;
+}
+
+/* Custom Minimal Scrollbar */
+::-webkit-scrollbar {
+   width: 6px;
+   height: 6px;
+}
+
+::-webkit-scrollbar-track {
+   background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+   background: rgba(22, 24, 35, 0.15);
+   border-radius: 4px;
+   transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+   background: rgba(22, 24, 35, 0.35);
+}
+
+/* Firefox scrollbar */
+* {
+   scrollbar-width: thin;
+   scrollbar-color: rgba(22, 24, 35, 0.15) transparent;
+}
+
+/* Tôn trọng prefers-reduced-motion của hệ điều hành */
+@media (prefers-reduced-motion: reduce) {
+   html {
+      scroll-behavior: auto;
+   }
+
+   *,
+   *::before,
+   *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+   }
 }
 
 body {

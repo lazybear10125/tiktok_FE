@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -37,6 +38,8 @@ const VIDEO_AUTHORS = new Set(['sondn', 'mixigaming', 'mrbeast', 'khaby.lame', '
 
 function Feed() {
    const { currentUser, openLoginModal } = useAuth();
+   const location = useLocation();
+
    const [feedPosts, setFeedPosts] = useState([]);
    const [currentIndex, setCurrentIndex] = useState(0);
    const [likedList, setLikedList] = useState({});
@@ -44,11 +47,12 @@ function Feed() {
    const [isMuted, setIsMuted] = useState(true);
    const [isCommentsOpen, setIsCommentsOpen] = useState(false);
    const [videoErrorMap, setVideoErrorMap] = useState({});
-   const videoRef = useRef(null);
 
-   const handleToggleComments = () => {
-      setIsCommentsOpen((prev) => !prev);
-   };
+   const videoRef = useRef(null);
+   const containerRef = useRef(null);
+   const commentsPanelRef = useRef(null);
+   const lastWheelTimeRef = useRef(0);
+   const touchStartYRef = useRef(0);
 
    const handleVideoError = (id) => {
       setVideoErrorMap((prev) => ({ ...prev, [id]: true }));
@@ -108,6 +112,38 @@ function Feed() {
       };
    }, []);
 
+   const totalItems = feedPosts.length > 0 ? feedPosts.length : 1;
+
+   // Điều hướng mượt mà đến video được liên kết từ thông báo
+   useEffect(() => {
+      if (location.state?.targetVideoId && feedPosts.length > 0) {
+         const targetId = location.state.targetVideoId;
+         const targetIdx = feedPosts.findIndex((p) => p.id === targetId);
+         if (targetIdx !== -1) {
+            setCurrentIndex(targetIdx);
+            if (location.state.openComments) {
+               setIsCommentsOpen(true);
+            }
+            if (containerRef.current) {
+               containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+         }
+      }
+   }, [location.state, feedPosts]);
+
+   // Bật/tắt Comments Popup kèm cuộn mượt đến phần bình luận
+   const handleToggleComments = () => {
+      setIsCommentsOpen((prev) => {
+         const next = !prev;
+         if (next) {
+            setTimeout(() => {
+               commentsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 60);
+         }
+         return next;
+      });
+   };
+
    // Fallback nếu API chưa về hoặc trống
    const currentPost =
       feedPosts.length > 0
@@ -127,8 +163,6 @@ function Feed() {
            };
 
    const currentAuthor = currentPost.user || {};
-   const totalItems = feedPosts.length > 0 ? feedPosts.length : 1;
-
    const isLiked = !!likedList[currentIndex];
 
    const handleToggleLike = () => {
@@ -149,27 +183,61 @@ function Feed() {
       }
    };
 
-   const handlePrev = () => {
+   const handlePrev = useCallback(() => {
       setIsPlaying(true);
       setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
-   };
+   }, [totalItems]);
 
-   const handleNext = () => {
+   const handleNext = useCallback(() => {
       setIsPlaying(true);
       setCurrentIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
+   }, [totalItems]);
+
+   // Cuộn danh sách video bằng chuột (Mouse wheel)
+   const handleWheel = useCallback(
+      (e) => {
+         // Nếu con trỏ nằm trong bảng bình luận thì để bảng bình luận cuộn tự nhiên
+         if (e.target.closest(`.${cx('comments-panel')}`)) return;
+
+         const now = Date.now();
+         if (now - lastWheelTimeRef.current < 400) return;
+
+         if (e.deltaY > 25) {
+            lastWheelTimeRef.current = now;
+            handleNext();
+         } else if (e.deltaY < -25) {
+            lastWheelTimeRef.current = now;
+            handlePrev();
+         }
+      },
+      [handleNext, handlePrev]
+   );
+
+   // Cuộn danh sách video bằng cảm ứng (Touch swipe) trên mobile
+   const handleTouchStart = (e) => {
+      touchStartYRef.current = e.touches[0].clientY;
    };
 
-   // Hỗ trợ phím mũi tên Lên / Xuống để chuyển video (ngăn chặn cuộn sidebar mặc định)
+   const handleTouchEnd = (e) => {
+      const diffY = touchStartYRef.current - e.changedTouches[0].clientY;
+      if (Math.abs(diffY) > 40) {
+         if (diffY > 0) {
+            handleNext();
+         } else {
+            handlePrev();
+         }
+      }
+   };
+
+   // Hỗ trợ phím mũi tên Lên / Xuống để chuyển video
    useEffect(() => {
       const handleKeyDown = (e) => {
          if (e.key === 'ArrowDown') {
             e.preventDefault();
-            setIsPlaying(true);
-            setCurrentIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
+            handleNext();
          } else if (e.key === 'ArrowUp') {
             e.preventDefault();
-            setIsPlaying(true);
-            setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
+            handlePrev();
          }
       };
 
@@ -178,12 +246,18 @@ function Feed() {
       return () => {
          window.removeEventListener('keydown', handleKeyDown);
       };
-   }, [totalItems]);
+   }, [handleNext, handlePrev]);
 
    const hasVideo = !!currentPost.video_url && !videoErrorMap[currentPost.id];
 
    return (
-      <div className={cx('wrapper')}>
+      <div
+         ref={containerRef}
+         className={cx('wrapper')}
+         onWheel={handleWheel}
+         onTouchStart={handleTouchStart}
+         onTouchEnd={handleTouchEnd}
+      >
          <div className={cx('container')}>
             <div className={cx('image-frame')}>
                {hasVideo ? (
@@ -201,6 +275,7 @@ function Feed() {
                   />
                ) : (
                   <Image
+                     key={currentPost.image}
                      src={currentPost.image}
                      alt={currentAuthor.full_name}
                      className={cx('image')}
@@ -245,7 +320,7 @@ function Feed() {
                      </div>
                   </div>
 
-                  {/* Huy hiệu Follow hiển thị tĩnh, không có sự kiện click */}
+                  {/* Huy hiệu Follow hiển thị tĩnh */}
                   <div className={cx('follow-badge')}>
                      <FontAwesomeIcon icon={faPlus} style={{ fontSize: '1rem' }} />
                      <span>Follow</span>
@@ -275,7 +350,7 @@ function Feed() {
             </div>
 
             {/* Comments Panel */}
-            <div className={cx('comments-panel', { open: isCommentsOpen })}>
+            <div ref={commentsPanelRef} className={cx('comments-panel', { open: isCommentsOpen })}>
                <CommentsPopup
                   isOpen={isCommentsOpen}
                   onClose={() => setIsCommentsOpen(false)}
