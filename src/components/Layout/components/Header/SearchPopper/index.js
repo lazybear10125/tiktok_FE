@@ -4,7 +4,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
    faClock,
    faXmark,
-   faFire,
    faMagnifyingGlass,
    faChevronDown,
    faChevronUp,
@@ -105,10 +104,7 @@ function SearchPopper({
                {recentSearches.length > 0 && (
                   <div className={cx('recent-section')}>
                      <div className={cx('section-header')}>
-                        <span className={cx('section-title')}>
-                           <FontAwesomeIcon icon={faClock} />
-                           Recent
-                        </span>
+                        <span className={cx('section-title')}>Recent</span>
                         <button
                            className={cx('clear-all-btn')}
                            onMouseDown={(e) => e.preventDefault()}
@@ -164,10 +160,7 @@ function SearchPopper({
                {/* 2. TRENDING SEARCHES */}
                <div className={cx('trending-section')}>
                   <div className={cx('section-header')}>
-                     <span className={cx('section-title')}>
-                        <FontAwesomeIcon icon={faFire} className={cx('section-icon')} />
-                        Trending searches
-                     </span>
+                     <span className={cx('section-title')}>Trending searches</span>
                   </div>
 
                   {/* Category Filter Chips */}
