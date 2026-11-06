@@ -29,6 +29,7 @@ import styles from './Profile.module.scss';
 const cx = classNames.bind(styles);
 
 const PLACEHOLDER_VIDEOS = Array.from({ length: 12 });
+const profileMemoryCache = new Map();
 
 const formatCount = (count) => {
    if (typeof count === 'number') {
@@ -115,11 +116,17 @@ function Profile() {
 
    useEffect(() => {
       let isMounted = true;
-      // Chỉ hiện skeleton loading khi chưa có dữ liệu user
-      setUser((currentUserState) => {
-         if (!currentUserState) setLoading(true);
-         return currentUserState;
-      });
+
+      // 1. Nếu đã có dữ liệu trong bộ nhớ đệm (cache), hiển thị tức thì 0ms không phải chờ
+      const cached = profileMemoryCache.get(cleanNickname.toLowerCase());
+      if (cached) {
+         setUser(cached);
+         setIsFollowed(!!currentUser && !!cached.is_followed);
+         setFollowersCount(cached.followers_count || 0);
+         setLoading(false);
+      } else {
+         setLoading(true);
+      }
 
       const fetchData = async () => {
          try {
@@ -130,15 +137,16 @@ function Profile() {
                if (isBearNickname || userData.is_personal || userData.nickname?.toLowerCase() === 'bear') {
                   userData.avatar = BEAR_AVATAR;
                }
+               profileMemoryCache.set(cleanNickname.toLowerCase(), userData);
                setUser(userData);
                setIsFollowed(!!currentUser && !!userData.is_followed);
                setFollowersCount(userData.followers_count || 0);
-            } else {
+            } else if (!cached) {
                setUser(null);
             }
          } catch (err) {
             console.error('Fetch profile error:', err);
-            if (isMounted) setUser(null);
+            if (isMounted && !cached) setUser(null);
          } finally {
             if (isMounted) setLoading(false);
          }

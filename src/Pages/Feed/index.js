@@ -103,54 +103,60 @@ function Feed() {
       setVideoErrorMap((prev) => ({ ...prev, [id]: true }));
    };
 
-   // Lấy 100% dữ liệu bài đăng từ Backend API (/api/videos)
+   // Lấy dữ liệu bài đăng từ Backend API: Tải trang 1 tức thì, tải ngầm các trang tiếp theo
    useEffect(() => {
       let isMounted = true;
 
-      Promise.all([
-         videoServices.getVideos({ type: 'for-you', page: 1 }).catch(() => []),
-         videoServices.getVideos({ type: 'for-you', page: 2 }).catch(() => []),
-         videoServices.getVideos({ type: 'for-you', page: 3 }).catch(() => []),
-         videoServices.getVideos({ type: 'for-you', page: 4 }).catch(() => []),
-      ]).then(([p1, p2, p3, p4]) => {
-         if (!isMounted) return;
+      const formatPost = (video, idx) => {
+         const authorNick = video.user?.nickname || '';
+         const isVideoType =
+            video.type === 'video' || !!video.video_file || !!video.video_url || VIDEO_AUTHORS.has(authorNick);
 
-         const allApiVideos = [...(p1 || []), ...(p2 || []), ...(p3 || []), ...(p4 || [])];
+         const videoUrl = isVideoType
+            ? video.video_url || FOR_YOU_VIDEO_CLIPS[idx % FOR_YOU_VIDEO_CLIPS.length]
+            : null;
 
-         if (allApiVideos.length > 0) {
-            let videoClipIdx = 0;
-            const normalized = allApiVideos.map((video) => {
-               const authorNick = video.user?.nickname || '';
-               const isVideoType =
-                  video.type === 'video' || !!video.video_file || !!video.video_url || VIDEO_AUTHORS.has(authorNick);
+         const imageUrl =
+            video.image_url ||
+            (video.image_file ? `http://localhost:8080/avatars/${video.image_file}` : null) ||
+            video.user?.avatar;
 
-               const videoUrl = isVideoType
-                  ? video.video_url || FOR_YOU_VIDEO_CLIPS[videoClipIdx++ % FOR_YOU_VIDEO_CLIPS.length]
-                  : null;
+         return {
+            id: video.id,
+            type: isVideoType ? 'video' : 'image',
+            user: video.user,
+            video_url: videoUrl,
+            image: imageUrl,
+            caption: video.description || `${video.user?.full_name} trên For You #fyp`,
+            music: video.music || 'nhạc nền - TikTok Official',
+            likes_count: video.likes_count || 100,
+            comments_count: video.comments_count || 50,
+            is_liked: !!video.is_liked,
+            created_at: video.created_at,
+         };
+      };
 
-               const imageUrl =
-                  video.image_url ||
-                  (video.image_file ? `https://tiktok-api-pq2d.onrender.com/avatars/${video.image_file}` : null) ||
-                  video.user?.avatar;
+      // 1. Tải trang 1 siêu tốc để người dùng xem ngay lập tức
+      videoServices.getVideos({ type: 'for-you', page: 1 }).then((p1) => {
+         if (!isMounted || !p1 || p1.length === 0) return;
+         setFeedPosts(p1.map((v, i) => formatPost(v, i)));
 
-               return {
-                  id: video.id,
-                  type: isVideoType ? 'video' : 'image',
-                  user: video.user,
-                  video_url: videoUrl,
-                  image: imageUrl,
-                  caption: video.description || `${video.user?.full_name} trên For You #fyp`,
-                  music: video.music || 'nhạc nền - TikTok Official',
-                  likes_count: video.likes_count || 100,
-                  comments_count: video.comments_count || 50,
-                  is_liked: !!video.is_liked,
-                  created_at: video.created_at,
-               };
-            });
-
-            setFeedPosts(normalized);
-         }
-      });
+         // 2. Tải ngầm các trang tiếp theo không làm nghẽn trang chủ
+         Promise.all([
+            videoServices.getVideos({ type: 'for-you', page: 2 }).catch(() => []),
+            videoServices.getVideos({ type: 'for-you', page: 3 }).catch(() => []),
+            videoServices.getVideos({ type: 'for-you', page: 4 }).catch(() => []),
+         ]).then(([p2, p3, p4]) => {
+            if (!isMounted) return;
+            const remaining = [...(p2 || []), ...(p3 || []), ...(p4 || [])];
+            if (remaining.length > 0) {
+               setFeedPosts((prev) => [
+                  ...prev,
+                  ...remaining.map((v, i) => formatPost(v, prev.length + i)),
+               ]);
+            }
+         });
+      }).catch(() => {});
 
       return () => {
          isMounted = false;
