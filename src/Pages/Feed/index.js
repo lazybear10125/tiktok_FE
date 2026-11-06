@@ -45,6 +45,7 @@ function Feed() {
    const [likedList, setLikedList] = useState({});
    const [isPlaying, setIsPlaying] = useState(true);
    const [isMuted, setIsMuted] = useState(true);
+   const [volume, setVolume] = useState(0.5);
    const [isCommentsOpen, setIsCommentsOpen] = useState(false);
    const [videoErrorMap, setVideoErrorMap] = useState({});
 
@@ -53,6 +54,50 @@ function Feed() {
    const commentsPanelRef = useRef(null);
    const lastWheelTimeRef = useRef(0);
    const touchStartYRef = useRef(0);
+
+   useEffect(() => {
+      if (videoRef.current) {
+         videoRef.current.muted = isMuted;
+         videoRef.current.volume = isMuted ? 0 : volume;
+      }
+   }, [currentIndex, isMuted, volume]);
+
+   const handleToggleMute = (e) => {
+      e?.stopPropagation();
+      setIsMuted((prev) => {
+         const nextMuted = !prev;
+         if (videoRef.current) {
+            videoRef.current.muted = nextMuted;
+            if (!nextMuted) {
+               const unmutedVol = volume > 0 ? volume : 0.5;
+               videoRef.current.volume = unmutedVol;
+               setVolume(unmutedVol);
+            } else {
+               videoRef.current.volume = 0;
+            }
+         }
+         return nextMuted;
+      });
+   };
+
+   const handleVolumeChange = (e) => {
+      e.stopPropagation();
+      const newVol = parseFloat(e.target.value) / 100;
+      setVolume(newVol);
+      if (newVol === 0) {
+         setIsMuted(true);
+         if (videoRef.current) {
+            videoRef.current.muted = true;
+            videoRef.current.volume = 0;
+         }
+      } else {
+         setIsMuted(false);
+         if (videoRef.current) {
+            videoRef.current.muted = false;
+            videoRef.current.volume = newVol;
+         }
+      }
+   };
 
    const handleVideoError = (id) => {
       setVideoErrorMap((prev) => ({ ...prev, [id]: true }));
@@ -210,7 +255,7 @@ function Feed() {
             handlePrev();
          }
       },
-      [handleNext, handlePrev]
+      [handleNext, handlePrev],
    );
 
    // Cuộn danh sách video bằng cảm ứng (Touch swipe) trên mobile
@@ -249,6 +294,7 @@ function Feed() {
    }, [handleNext, handlePrev]);
 
    const hasVideo = !!currentPost.video_url && !videoErrorMap[currentPost.id];
+   const currentSliderValue = isMuted ? 0 : Math.round(volume * 100);
 
    return (
       <div
@@ -292,14 +338,33 @@ function Feed() {
 
                {/* Nút bật/tắt âm thanh góc trên bên phải */}
                {hasVideo && (
-                  <button
-                     type="button"
-                     className={cx('mute-btn')}
-                     onClick={() => setIsMuted((prev) => !prev)}
-                     title={isMuted ? 'Mute' : 'Unmute'}
-                  >
-                     <FontAwesomeIcon icon={isMuted ? faVolumeXmark : faVolumeHigh} />
-                  </button>
+                  <div className={cx('volume-control')} onClick={(e) => e.stopPropagation()}>
+                     <button
+                        type="button"
+                        className={cx('mute-btn')}
+                        onClick={handleToggleMute}
+                        title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+                     >
+                        <FontAwesomeIcon icon={isMuted ? faVolumeXmark : faVolumeHigh} />
+                     </button>
+
+                     <div className={cx('volume-slider-wrapper')}>
+                        <input
+                           type="range"
+                           min="0"
+                           max="100"
+                           value={currentSliderValue}
+                           onChange={handleVolumeChange}
+                           onMouseDown={(e) => e.stopPropagation()}
+                           onTouchStart={(e) => e.stopPropagation()}
+                           className={cx('volume-slider')}
+                           style={{
+                              background: `linear-gradient(to right, #0075ff 0%, #0075ff ${currentSliderValue}%, #e5e5e5 ${currentSliderValue}%, #e5e5e5 100%)`,
+                           }}
+                           title={`Âm lượng: ${currentSliderValue}%`}
+                        />
+                     </div>
+                  </div>
                )}
 
                {/* Thông tin tài khoản hiển thị tĩnh, không click chuyển trang profile */}
