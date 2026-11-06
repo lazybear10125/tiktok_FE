@@ -118,7 +118,8 @@
 }
 
 .search-result {
-   width: 361px;
+   width: 440px;
+   max-width: calc(100vw - 32px);
 }
 
 .search-title {

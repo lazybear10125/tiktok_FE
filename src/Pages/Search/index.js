@@ -9,6 +9,7 @@ import Button from '~/components/Button';
 import { useAuth } from '~/context/AuthContext';
 import * as searchServices from '~/services/searchService';
 import * as userServices from '~/services/userService';
+import { saveSearchHistory } from '~/utils/searchHistory';
 import styles from './Search.module.scss';
 
 const cx = classNames.bind(styles);
@@ -75,6 +76,8 @@ function Search() {
          setLoading(false);
          return;
       }
+
+      saveSearchHistory(query);
 
       setLoading(true);
       searchServices

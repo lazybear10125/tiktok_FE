@@ -31,6 +31,13 @@ import AccountItem from '~/components/AccountItem';
 import { useAuth } from '~/context/AuthContext';
 import * as searchServices from '~/services/searchService';
 import Inbox from './Inbox';
+import SearchPopper from './SearchPopper';
+import {
+   getSearchHistory,
+   saveSearchHistory,
+   removeSearchHistoryItem,
+   clearSearchHistory,
+} from '~/utils/searchHistory';
 
 const cx = classNames.bind(styles);
 
@@ -141,8 +148,33 @@ function Header() {
    ];
    const [searchValue, setSearchValue] = useState('');
    const [searchResult, setSearchResult] = useState([]);
-   const [showResult, setShowResult] = useState(true);
+   const [showResult, setShowResult] = useState(false);
+   const [recentSearches, setRecentSearches] = useState([]);
    const [loading, setLoading] = useState(false);
+
+   useEffect(() => {
+      setRecentSearches(getSearchHistory());
+   }, []);
+
+   const handleSelectKeyword = (keyword) => {
+      if (!keyword || !keyword.trim()) return;
+      const trimmed = keyword.trim();
+      const updated = saveSearchHistory(trimmed);
+      setRecentSearches(updated);
+      setSearchValue(trimmed);
+      setShowResult(false);
+      navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+   };
+
+   const handleRemoveRecent = (keyword) => {
+      const updated = removeSearchHistoryItem(keyword);
+      setRecentSearches(updated);
+   };
+
+   const handleClearRecent = () => {
+      const updated = clearSearchHistory();
+      setRecentSearches(updated);
+   };
 
    const debouncedValue = useDebounce(searchValue, 600);
 
@@ -214,23 +246,19 @@ function Header() {
 
             <HeadlessTippy
                interactive
-               visible={showResult && searchResult.length > 0}
+               visible={showResult}
+               placement="bottom-start"
                render={(attrs) => (
                   <div className={cx('search-result')} tabIndex="-1" {...attrs}>
-                     <PopperWrapper>
-                        <h4 className={cx('search-title')}>Accounts</h4>
-                        {visibleResults.map((result) => (
-                           <AccountItem key={result.id} data={result} onClick={() => setShowResult(false)} />
-                        ))}
-                        <Link
-                           to={`/search?q=${encodeURIComponent(searchValue.trim())}`}
-                           className={cx('search-more')}
-                           onClick={() => setShowResult(false)}
-                        >
-                           <FontAwesomeIcon icon={faMagnifyingGlass} className={cx('search-more-icon')} />
-                           <span>See all results for "{searchValue}"</span>
-                        </Link>
-                     </PopperWrapper>
+                     <SearchPopper
+                        searchValue={searchValue}
+                        recentSearches={recentSearches}
+                        accountResults={visibleResults}
+                        onSelectKeyword={handleSelectKeyword}
+                        onRemoveRecent={handleRemoveRecent}
+                        onClearRecent={handleClearRecent}
+                        onSelectAccount={() => setShowResult(false)}
+                     />
                   </div>
                )}
                onClickOutside={handleHideResult}
@@ -242,7 +270,11 @@ function Header() {
                      placeholder="Search accounts and videos"
                      spellCheck={false}
                      onChange={handleChange}
-                     onFocus={() => setShowResult(true)}
+                     onFocus={() => {
+                        setShowResult(true);
+                        setRecentSearches(getSearchHistory());
+                     }}
+                     onClick={() => setShowResult(true)}
                      onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                            handleSearchSubmit(e);

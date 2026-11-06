@@ -1,0 +1,371 @@
+.popper-container {
+   width: 440px;
+   max-width: 90vw;
+   max-height: 520px;
+   overflow-y: auto;
+   overflow-x: hidden;
+   padding: 10px 0;
+   background: var(--white, #ffffff);
+   border-radius: 8px;
+   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+
+   /* Sleek custom scrollbar */
+   &::-webkit-scrollbar {
+      width: 6px;
+   }
+   &::-webkit-scrollbar-thumb {
+      background-color: rgba(22, 24, 35, 0.15);
+      border-radius: 3px;
+   }
+   &::-webkit-scrollbar-track {
+      background: transparent;
+   }
+}
+
+/* Common Section Header */
+.section-header {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 8px 16px 6px;
+}
+
+.section-title {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   font-size: 1.4rem;
+   font-weight: 700;
+   color: rgba(22, 24, 35, 0.85);
+   letter-spacing: -0.2px;
+}
+
+.section-icon {
+   font-size: 1.4rem;
+   color: #fe2c55;
+}
+
+.clear-all-btn {
+   font-size: 1.3rem;
+   font-weight: 600;
+   color: rgba(22, 24, 35, 0.5);
+   background: transparent;
+   border: none;
+   cursor: pointer;
+   padding: 2px 6px;
+   border-radius: 4px;
+   transition: all 0.15s ease;
+
+   &:hover {
+      color: #fe2c55;
+      background: rgba(254, 44, 85, 0.06);
+   }
+}
+
+/* =========================================
+   1. RECENT SEARCHES
+   ========================================= */
+.recent-section {
+   margin-bottom: 12px;
+   padding-bottom: 8px;
+   border-bottom: 1px solid rgba(22, 24, 35, 0.08);
+}
+
+.recent-list {
+   list-style: none;
+   margin: 0;
+   padding: 0;
+}
+
+.recent-item {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 9px 16px;
+   cursor: pointer;
+   transition: background-color 0.15s ease;
+
+   &:hover {
+      background-color: rgba(22, 24, 35, 0.04);
+
+      .delete-btn {
+         opacity: 1;
+      }
+   }
+}
+
+.recent-main {
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   flex: 1;
+   min-width: 0;
+}
+
+.clock-icon {
+   font-size: 1.4rem;
+   color: rgba(22, 24, 35, 0.4);
+   flex-shrink: 0;
+}
+
+.recent-text {
+   font-size: 1.4rem;
+   color: #161823;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   font-weight: 500;
+}
+
+.delete-btn {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   width: 24px;
+   height: 24px;
+   background: transparent;
+   border: none;
+   border-radius: 50%;
+   color: rgba(22, 24, 35, 0.4);
+   font-size: 1.2rem;
+   cursor: pointer;
+   opacity: 0.6;
+   transition: all 0.15s ease;
+   flex-shrink: 0;
+   margin-left: 8px;
+
+   &:hover {
+      color: #161823;
+      background-color: rgba(22, 24, 35, 0.08);
+   }
+}
+
+/* =========================================
+   2. TRENDING SEARCHES
+   ========================================= */
+.trending-section {
+   padding: 4px 0 8px;
+}
+
+.category-tabs {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   padding: 6px 16px 10px;
+   overflow-x: auto;
+   white-space: nowrap;
+   scrollbar-width: none;
+
+   &::-webkit-scrollbar {
+      display: none;
+   }
+}
+
+.category-pill {
+   padding: 5px 12px;
+   border-radius: 16px;
+   font-size: 1.25rem;
+   font-weight: 600;
+   color: rgba(22, 24, 35, 0.7);
+   background: rgba(22, 24, 35, 0.05);
+   border: 1px solid transparent;
+   cursor: pointer;
+   transition: all 0.15s ease;
+   flex-shrink: 0;
+
+   &:hover {
+      background: rgba(22, 24, 35, 0.08);
+      color: #161823;
+   }
+
+   &.active {
+      background: #161823;
+      color: #ffffff;
+   }
+}
+
+.trending-list {
+   list-style: none;
+   margin: 0;
+   padding: 0;
+}
+
+.trending-item {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 9px 16px;
+   cursor: pointer;
+   transition: background-color 0.15s ease;
+
+   &:hover {
+      background-color: rgba(22, 24, 35, 0.04);
+   }
+}
+
+.trending-left {
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   flex: 1;
+   min-width: 0;
+}
+
+.rank-badge {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 22px;
+   height: 22px;
+   border-radius: 4px;
+   font-size: 1.25rem;
+   font-weight: 700;
+   flex-shrink: 0;
+   background: rgba(22, 24, 35, 0.06);
+   color: rgba(22, 24, 35, 0.6);
+
+   &.rank-1 {
+      background: #fe2c55;
+      color: #ffffff;
+   }
+
+   &.rank-2 {
+      background: #ff7a00;
+      color: #ffffff;
+   }
+
+   &.rank-3 {
+      background: #faad14;
+      color: #ffffff;
+   }
+}
+
+.trending-keyword {
+   font-size: 1.4rem;
+   font-weight: 500;
+   color: #161823;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+}
+
+.trending-right {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   flex-shrink: 0;
+   margin-left: 10px;
+}
+
+.search-volume {
+   font-size: 1.2rem;
+   color: rgba(22, 24, 35, 0.45);
+   font-weight: 500;
+}
+
+.trend-badge {
+   display: inline-flex;
+   align-items: center;
+   gap: 3px;
+   font-size: 1.15rem;
+   font-weight: 600;
+   padding: 2px 6px;
+   border-radius: 4px;
+
+   &.up {
+      color: #00ba88;
+      background: rgba(0, 186, 136, 0.1);
+   }
+
+   &.down {
+      color: #8a8b91;
+      background: rgba(22, 24, 35, 0.05);
+   }
+}
+
+.trend-icon {
+   font-size: 1rem;
+}
+
+/* =========================================
+   3. SEARCH SUGGESTIONS
+   ========================================= */
+.suggestion-section {
+   padding: 4px 0;
+}
+
+.suggestion-item {
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   padding: 10px 16px;
+   cursor: pointer;
+   transition: background-color 0.15s ease;
+
+   &:hover {
+      background-color: rgba(22, 24, 35, 0.04);
+   }
+}
+
+.search-icon {
+   font-size: 1.4rem;
+   color: rgba(22, 24, 35, 0.45);
+   flex-shrink: 0;
+}
+
+.suggestion-text {
+   font-size: 1.45rem;
+   color: #161823;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   font-weight: 400;
+
+   strong {
+      font-weight: 700;
+      color: #161823;
+   }
+}
+
+/* Accounts Section inside Popper */
+.accounts-section {
+   border-top: 1px solid rgba(22, 24, 35, 0.08);
+   margin-top: 6px;
+   padding-top: 6px;
+}
+
+.accounts-title {
+   padding: 6px 16px;
+   font-size: 1.35rem;
+   font-weight: 700;
+   color: rgba(22, 24, 35, 0.5);
+   text-transform: uppercase;
+   letter-spacing: 0.5px;
+}
+
+/* See All Results */
+.see-all-results {
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   width: 100%;
+   padding: 12px 16px;
+   font-size: 1.4rem;
+   font-weight: 600;
+   color: #161823;
+   border-top: 1px solid rgba(22, 24, 35, 0.08);
+   cursor: pointer;
+   text-decoration: none;
+   background: transparent;
+   transition: background-color 0.15s ease;
+
+   &:hover {
+      background-color: rgba(22, 24, 35, 0.04);
+   }
+
+   span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+   }
+}
