@@ -22,10 +22,10 @@ const cx = classNames.bind(styles);
 
 function Sidebar() {
    const { currentUser, login } = useAuth();
-   const [suggestedUsers, setSuggestedUsers] = useState([]);
+   const [suggestedUsers, setSuggestedUsers] = useState(userServices.DEFAULT_SUGGESTED_USERS || []);
    const [followingUsers, setFollowingUsers] = useState([]);
 
-   useEffect(() => {
+   const loadSuggested = () => {
       userServices
          .getSuggested({ page: 1, perPage: 20 })
          .then((data) => {
@@ -34,6 +34,10 @@ function Sidebar() {
             }
          })
          .catch((err) => console.error(err));
+   };
+
+   useEffect(() => {
+      loadSuggested();
    }, []);
 
    useEffect(() => {
@@ -79,6 +83,8 @@ function Sidebar() {
    useEffect(() => {
       const handleLogout = () => {
          setFollowingUsers([]);
+         // Luôn đảm bảo Suggested Accounts hiển thị đầy đủ khi chưa đăng nhập
+         loadSuggested();
       };
       window.addEventListener('auth-logout', handleLogout);
       return () => window.removeEventListener('auth-logout', handleLogout);

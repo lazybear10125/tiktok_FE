@@ -4,13 +4,13 @@
    position: sticky;
    top: var(--default-layout-header-height);
    height: calc(100vh - var(--default-layout-header-height));
-   overflow-y: hidden;
+   overflow-y: auto;
    overscroll-behavior: contain;
    scroll-behavior: smooth;
    flex-shrink: 0;
 
    &:hover {
-      overflow-y: overlay;
+      overflow-y: auto;
    }
 
    &::-webkit-scrollbar {
