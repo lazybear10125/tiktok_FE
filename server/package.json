@@ -4,8 +4,10 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "db:init": "node scripts/init-db.js",
+    "db:seed": "node scripts/init-db.js --force"
   },
   "keywords": [],
   "author": "",
@@ -13,7 +15,9 @@
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
     "express": "^5.3.0",
-    "morgan": "^1.12.1"
+    "morgan": "^1.12.1",
+    "mysql2": "^3.24.6"
   }
 }

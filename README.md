@@ -72,5 +72,11 @@
 21.   - add
          - "behavior: smooth"
          - volum silder
+22.   - Foryou:
+         - random search
+23.   - Search:
+         - random article
+24.   - Following:
+         - random article
 
 #### api nhiều data load chậm

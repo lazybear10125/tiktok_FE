@@ -1,19 +1,48 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import classNames from 'classnames/bind';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-   faClock,
-   faXmark,
-   faMagnifyingGlass,
-   faChevronDown,
-   faChevronUp,
-} from '@fortawesome/free-solid-svg-icons';
+import { faClock, faXmark, faMagnifyingGlass, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
 
 import AccountItem from '~/components/AccountItem';
 import { CATEGORIES, TRENDING_SEARCHES, SEARCH_SUGGESTIONS_DICTIONARY } from '~/data/trendingSearches';
 import styles from './SearchPopper.module.scss';
 
 const cx = classNames.bind(styles);
+
+// Helper xáo trộn ngẫu nhiên danh sách (Fisher-Yates shuffle)
+const shuffleList = (array) => {
+   const copy = [...array];
+   for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+   }
+   return copy;
+};
+
+// Helper định dạng số lượt tìm kiếm hiển thị (ví dụ 4.2M hoặc 750K)
+const formatSearchVolume = (num) => {
+   if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+   }
+   return Math.round(num / 1000) + 'K';
+};
+
+// Helper sinh dãy số tìm kiếm ngẫu nhiên giảm dần tự nhiên
+const getRandomDescendingVolumes = (count = 10) => {
+   const volumes = [];
+   // Top 1 nhận giá trị cao nhất từ 3.6M đến 5.2M
+   let current = Math.floor(Math.random() * 1600000) + 3600000;
+   volumes.push(current);
+
+   for (let i = 1; i < count; i++) {
+      // Mỗi bậc kế tiếp giảm ngẫu nhiên từ 180K đến 450K
+      const drop = Math.floor(Math.random() * 270000) + 180000;
+      current = Math.max(320000, current - drop);
+      volumes.push(current);
+   }
+
+   return volumes;
+};
 
 const normalizeStr = (str) =>
    (str || '')
@@ -28,11 +57,7 @@ const highlightMatch = (text, query) => {
       const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
       return parts.map((part, index) =>
-         part.toLowerCase() === q.toLowerCase() ? (
-            <strong key={index}>{part}</strong>
-         ) : (
-            part
-         )
+         part.toLowerCase() === q.toLowerCase() ? <strong key={index}>{part}</strong> : part,
       );
    } catch {
       return text;
@@ -43,6 +68,7 @@ function SearchPopper({
    searchValue = '',
    recentSearches = [],
    accountResults = [],
+   searchFocusKey = 0,
    onSelectKeyword,
    onRemoveRecent,
    onClearRecent,
@@ -50,18 +76,34 @@ function SearchPopper({
 }) {
    const [selectedCategory, setSelectedCategory] = useState('All');
    const [isRecentExpanded, setIsRecentExpanded] = useState(false);
+   const [displayedTrending, setDisplayedTrending] = useState([]);
    const RECENT_COLLAPSED_COUNT = 3;
 
    const trimmedQuery = searchValue.trim();
    const isTyping = trimmedQuery.length > 0;
 
-   // 1. Filtered Trending Searches based on category tab
-   const filteredTrending = useMemo(() => {
-      if (selectedCategory === 'All') {
-         return TRENDING_SEARCHES.slice(0, 10);
-      }
-      return TRENDING_SEARCHES.filter((item) => item.category === selectedCategory).slice(0, 10);
-   }, [selectedCategory]);
+   // 1. Random từ khóa, random số lượt tìm kiếm và sắp xếp giảm dần theo số lượt tìm kiếm
+   useEffect(() => {
+      const pool =
+         selectedCategory === 'All'
+            ? TRENDING_SEARCHES
+            : TRENDING_SEARCHES.filter((item) => item.category === selectedCategory);
+
+      // Lấy ngẫu nhiên 10 từ khóa
+      const pickedKeywords = shuffleList(pool).slice(0, 10);
+
+      // Sinh 10 số lượt tìm kiếm ngẫu nhiên giảm dần
+      const volumes = getRandomDescendingVolumes(pickedKeywords.length);
+
+      // Gán số lượt tìm kiếm và gán thứ hạng rank tương ứng (Top 1 có lượt search cao nhất)
+      const rankedTrending = pickedKeywords.map((item, index) => ({
+         ...item,
+         searchVolume: formatSearchVolume(volumes[index]),
+         rank: index + 1,
+      }));
+
+      setDisplayedTrending(rankedTrending);
+   }, [selectedCategory, searchFocusKey]);
 
    // 2. Autocomplete Suggestions when user is typing
    const suggestions = useMemo(() => {
@@ -70,10 +112,7 @@ function SearchPopper({
 
       // Collect all potential keywords
       const allPool = Array.from(
-         new Set([
-            ...SEARCH_SUGGESTIONS_DICTIONARY,
-            ...TRENDING_SEARCHES.map((t) => t.keyword),
-         ])
+         new Set([...SEARCH_SUGGESTIONS_DICTIONARY, ...TRENDING_SEARCHES.map((t) => t.keyword)]),
       );
 
       const matched = allPool.filter((kw) => {
@@ -114,32 +153,31 @@ function SearchPopper({
                         </button>
                      </div>
                      <ul className={cx('recent-list')}>
-                        {(isRecentExpanded
-                           ? recentSearches
-                           : recentSearches.slice(0, RECENT_COLLAPSED_COUNT)
-                        ).map((keyword, index) => (
-                           <li
-                              key={`${keyword}-${index}`}
-                              className={cx('recent-item')}
-                              onClick={() => onSelectKeyword(keyword)}
-                           >
-                              <div className={cx('recent-main')}>
-                                 <FontAwesomeIcon icon={faClock} className={cx('clock-icon')} />
-                                 <span className={cx('recent-text')}>{keyword}</span>
-                              </div>
-                              <button
-                                 className={cx('delete-btn')}
-                                 title="Remove"
-                                 onMouseDown={(e) => e.preventDefault()}
-                                 onClick={(e) => {
-                                    e.stopPropagation();
-                                    onRemoveRecent(keyword);
-                                 }}
+                        {(isRecentExpanded ? recentSearches : recentSearches.slice(0, RECENT_COLLAPSED_COUNT)).map(
+                           (keyword, index) => (
+                              <li
+                                 key={`${keyword}-${index}`}
+                                 className={cx('recent-item')}
+                                 onClick={() => onSelectKeyword(keyword)}
                               >
-                                 <FontAwesomeIcon icon={faXmark} />
-                              </button>
-                           </li>
-                        ))}
+                                 <div className={cx('recent-main')}>
+                                    <FontAwesomeIcon icon={faClock} className={cx('clock-icon')} />
+                                    <span className={cx('recent-text')}>{keyword}</span>
+                                 </div>
+                                 <button
+                                    className={cx('delete-btn')}
+                                    title="Remove"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={(e) => {
+                                       e.stopPropagation();
+                                       onRemoveRecent(keyword);
+                                    }}
+                                 >
+                                    <FontAwesomeIcon icon={faXmark} />
+                                 </button>
+                              </li>
+                           ),
+                        )}
                      </ul>
                      {recentSearches.length > RECENT_COLLAPSED_COUNT && (
                         <button
@@ -181,12 +219,8 @@ function SearchPopper({
 
                   {/* Trending List */}
                   <ul className={cx('trending-list')}>
-                     {filteredTrending.map((item) => (
-                        <li
-                           key={item.id}
-                           className={cx('trending-item')}
-                           onClick={() => onSelectKeyword(item.keyword)}
-                        >
+                     {displayedTrending.map((item) => (
+                        <li key={item.id} className={cx('trending-item')} onClick={() => onSelectKeyword(item.keyword)}>
                            <div className={cx('trending-left')}>
                               <span
                                  className={cx('rank-badge', {
@@ -223,9 +257,7 @@ function SearchPopper({
                            onClick={() => onSelectKeyword(suggestion)}
                         >
                            <FontAwesomeIcon icon={faMagnifyingGlass} className={cx('search-icon')} />
-                           <span className={cx('suggestion-text')}>
-                              {highlightMatch(suggestion, trimmedQuery)}
-                           </span>
+                           <span className={cx('suggestion-text')}>{highlightMatch(suggestion, trimmedQuery)}</span>
                         </div>
                      ))}
                   </div>
@@ -246,10 +278,7 @@ function SearchPopper({
                )}
 
                {/* See all results for {query} */}
-               <div
-                  className={cx('see-all-results')}
-                  onClick={() => onSelectKeyword(trimmedQuery)}
-               >
+               <div className={cx('see-all-results')} onClick={() => onSelectKeyword(trimmedQuery)}>
                   <FontAwesomeIcon icon={faMagnifyingGlass} className={cx('search-icon')} />
                   <span>See all results for "{trimmedQuery}"</span>
                </div>

@@ -36,6 +36,16 @@ const FOR_YOU_VIDEO_CLIPS = [
 // Danh sách tác giả phát dạng Video
 const VIDEO_AUTHORS = new Set(['sondn', 'mixigaming', 'mrbeast', 'khaby.lame', 'zachking']);
 
+// Helper xáo trộn ngẫu nhiên danh sách (Fisher-Yates shuffle)
+const shuffleArray = (arr) => {
+   const copy = [...arr];
+   for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+   }
+   return copy;
+};
+
 function Feed() {
    const { currentUser, openLoginModal } = useAuth();
    const location = useLocation();
@@ -137,12 +147,13 @@ function Feed() {
          };
       };
 
-      // 1. Tải trang 1 siêu tốc để người dùng xem ngay lập tức
+      // 1. Tải trang 1 siêu tốc và xáo trộn ngẫu nhiên để mỗi lần vào web đều thấy bài mới
       videoServices.getVideos({ type: 'for-you', page: 1 }).then((p1) => {
          if (!isMounted || !p1 || p1.length === 0) return;
-         setFeedPosts(p1.map((v, i) => formatPost(v, i)));
+         const randomizedP1 = shuffleArray(p1);
+         setFeedPosts(randomizedP1.map((v, i) => formatPost(v, i)));
 
-         // 2. Tải ngầm các trang tiếp theo không làm nghẽn trang chủ
+         // 2. Tải ngầm các trang tiếp theo và xáo trộn để dòng For You luôn phong phú đa dạng
          Promise.all([
             videoServices.getVideos({ type: 'for-you', page: 2 }).catch(() => []),
             videoServices.getVideos({ type: 'for-you', page: 3 }).catch(() => []),
@@ -151,9 +162,10 @@ function Feed() {
             if (!isMounted) return;
             const remaining = [...(p2 || []), ...(p3 || []), ...(p4 || [])];
             if (remaining.length > 0) {
+               const randomizedRemaining = shuffleArray(remaining);
                setFeedPosts((prev) => [
                   ...prev,
-                  ...remaining.map((v, i) => formatPost(v, prev.length + i)),
+                  ...randomizedRemaining.map((v, i) => formatPost(v, prev.length + i)),
                ]);
             }
          });

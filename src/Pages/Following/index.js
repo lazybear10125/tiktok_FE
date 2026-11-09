@@ -62,6 +62,16 @@ const VIDEO_CREATOR_NICKNAMES = new Set([
    'duythamchannel',
 ]);
 
+// Helper xáo trộn ngẫu nhiên danh sách (Fisher-Yates shuffle)
+const shuffleArray = (arr) => {
+   const copy = [...arr];
+   for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+   }
+   return copy;
+};
+
 function Following() {
    const { currentUser, openLoginModal } = useAuth();
    const [followingUsers, setFollowingUsers] = useState([]);
@@ -119,11 +129,11 @@ function Following() {
             return (authorId && followedUserIds.has(authorId)) || (authorNick && followedNicknames.has(authorNick));
          });
 
-         // 4. Sắp xếp theo thời gian mới nhất trước (created_at descending)
-         filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+         // 4. Xáo trộn ngẫu nhiên bài đăng Following để mỗi lần xem người dùng được thấy bài mới từ các creator khác nhau
+         const randomizedPosts = shuffleArray(filtered);
 
          // 5. Chuẩn hóa bài đăng hỗ trợ cả dạng VIDEO và IMAGE
-         const normalizedPosts = filtered.map((post, idx) => {
+         const normalizedPosts = randomizedPosts.map((post, idx) => {
             const authorNick = post.user?.nickname || '';
             const isVideoType =
                post.type === 'video' ||
@@ -248,7 +258,8 @@ function Following() {
             return;
          }
 
-         const normalizedMore = filteredMore.map((post, idx) => {
+         const randomizedMore = shuffleArray(filteredMore);
+         const normalizedMore = randomizedMore.map((post, idx) => {
             const authorNick = post.user?.nickname || '';
             const isVideoType =
                post.type === 'video' ||

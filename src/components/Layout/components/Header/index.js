@@ -140,6 +140,7 @@ function Header() {
    const [showResult, setShowResult] = useState(false);
    const [recentSearches, setRecentSearches] = useState([]);
    const [loading, setLoading] = useState(false);
+   const [searchFocusKey, setSearchFocusKey] = useState(0);
 
    useEffect(() => {
       if (currentUser) {
@@ -265,6 +266,7 @@ function Header() {
                         searchValue={searchValue}
                         recentSearches={recentSearches}
                         accountResults={visibleResults}
+                        searchFocusKey={searchFocusKey}
                         onSelectKeyword={handleSelectKeyword}
                         onRemoveRecent={handleRemoveRecent}
                         onClearRecent={handleClearRecent}
@@ -283,13 +285,17 @@ function Header() {
                      onChange={handleChange}
                      onFocus={() => {
                         setShowResult(true);
+                        setSearchFocusKey((prev) => prev + 1);
                         if (currentUser) {
                            setRecentSearches(getSearchHistory());
                         } else {
                            setRecentSearches([]);
                         }
                      }}
-                     onClick={() => setShowResult(true)}
+                     onClick={() => {
+                        setShowResult(true);
+                        setSearchFocusKey((prev) => prev + 1);
+                     }}
                      onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                            handleSearchSubmit(e);
