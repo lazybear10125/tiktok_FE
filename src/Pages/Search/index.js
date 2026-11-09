@@ -22,7 +22,7 @@ const normalizeStr = (str) =>
 
 const rankSearchResults = (results, query) => {
    if (!query || !results?.length) return results || [];
-   const q = normalizeStr(query.trim());
+   const q = normalizeStr(query.replace(/^@/, '').trim());
 
    return [...results].sort((a, b) => {
       const nickA = normalizeStr(a.nickname);

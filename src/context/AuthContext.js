@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
       authServices
          .getCurrentUser()
          .then((userData) => {
-            if (userData) {
+            if (userData && (userData.id || userData.nickname)) {
                setCurrentUser(userData);
                localStorage.setItem('user_profile', JSON.stringify(userData));
                localStorage.setItem('isLoggedIn', 'true');
@@ -90,10 +90,17 @@ export function AuthProvider({ children }) {
    // Xử lý Đăng nhập qua API backend thực tế (POST /api/auth/login)
    const login = async (credentials) => {
       try {
+         // Xóa token và cache cũ trước để tránh rò rỉ danh tính
+         authServices.removeToken();
+         localStorage.removeItem('user_profile');
+
          const res = await authServices.login(credentials);
-         const user = res.data || (await authServices.getCurrentUser()) || true;
+         if (res && res.token) {
+            authServices.setToken(res.token);
+         }
+         const user = res.data || (await authServices.getCurrentUser());
          setCurrentUser(user);
-         if (typeof user === 'object') {
+         if (user && typeof user === 'object') {
             localStorage.setItem('user_profile', JSON.stringify(user));
          }
          localStorage.setItem('isLoggedIn', 'true');
@@ -101,7 +108,6 @@ export function AuthProvider({ children }) {
          window.dispatchEvent(new CustomEvent('auth-login', { detail: { user } }));
          return res;
       } catch (error) {
-         // Ném lỗi ra ngoài để AuthModal hiển thị thông báo lỗi trên form
          throw error;
       }
    };
@@ -109,10 +115,17 @@ export function AuthProvider({ children }) {
    // Xử lý Đăng ký qua API backend thực tế (POST /api/auth/register)
    const register = async (data) => {
       try {
+         // Xóa token và cache cũ trước để tài khoản mới độc lập 100%
+         authServices.removeToken();
+         localStorage.removeItem('user_profile');
+
          const res = await authServices.register(data);
-         const user = res.data || (await authServices.getCurrentUser()) || true;
+         if (res && res.token) {
+            authServices.setToken(res.token);
+         }
+         const user = res.data || (await authServices.getCurrentUser());
          setCurrentUser(user);
-         if (typeof user === 'object') {
+         if (user && typeof user === 'object') {
             localStorage.setItem('user_profile', JSON.stringify(user));
          }
          localStorage.setItem('isLoggedIn', 'true');

@@ -100,6 +100,19 @@ async function initDatabase(force = false) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
+    // 6. Tao bang FOLLOWS
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS follows (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        follower_id INT NOT NULL,
+        following_id INT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_follow (follower_id, following_id),
+        INDEX idx_follower (follower_id),
+        INDEX idx_following (following_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
     // 4. Tao bang LIVES
     await conn.query(`
       CREATE TABLE IF NOT EXISTS lives (

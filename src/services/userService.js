@@ -104,10 +104,6 @@ export const getSuggested = async ({ page = 1, perPage = 20 } = {}) => {
          },
       });
       if (res && Array.isArray(res.data) && res.data.length > 0) {
-         const isLoggedIn = localStorage.getItem('isLoggedIn') !== 'false' && !!localStorage.getItem('token');
-         if (!isLoggedIn) {
-            return res.data.map((u) => ({ ...u, is_followed: false }));
-         }
          return res.data;
       }
       return DEFAULT_SUGGESTED_USERS;
@@ -132,64 +128,35 @@ export const getFollowing = async ({ page = 1, perPage = 20 } = {}) => {
    }
 };
 
-export const BEAR_AVATAR =
-   'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80';
-
-export const PERSONAL_USER = {
-   id: 999,
-   nickname: 'bear',
-   first_name: 'Nguyễn',
-   last_name: 'Cường',
-   full_name: 'Nguyễn Cường',
-   avatar: BEAR_AVATAR,
-   bio: 'Lập trình viên Frontend & Yêu thích sáng tạo nội dung 🚀✨',
-   tick: true,
-   followings_count: 86,
-   followers_count: 125000,
-   likes_count: 890000,
-   website_url: 'https://github.com/lazybear10125',
-   is_personal: true,
-};
-
 export const getUser = async (nickname) => {
-   const cleanNickname = nickname ? nickname.replace(/^@/, '') : '';
+   const cleanNickname = nickname ? nickname.replace(/^@/, '').trim() : '';
    if (!cleanNickname) return null;
-
-   const isBear =
-      cleanNickname.toLowerCase() === 'bear' ||
-      cleanNickname.toLowerCase() === 'profile' ||
-      cleanNickname.toLowerCase() === 'me';
 
    try {
       const res = await httpRequest.get(`users/@${cleanNickname}`);
-      const data = res.data || null;
-      if (data) {
-         const isLoggedIn = localStorage.getItem('isLoggedIn') !== 'false' && !!localStorage.getItem('token');
-         if (!isLoggedIn) {
-            data.is_followed = false;
-         }
-         if (isBear || data.is_personal || data.nickname?.toLowerCase() === 'bear') {
-            return {
-               ...data,
-               avatar: BEAR_AVATAR,
-            };
-         }
-         return data;
-      }
-      if (isBear) return PERSONAL_USER;
-      return null;
+      return res.data || null;
    } catch (error) {
       console.error('getUser error:', error);
-      if (isBear) {
-         return PERSONAL_USER;
-      }
       return null;
+   }
+};
+
+export const getUserVideos = async (nickname) => {
+   const cleanNickname = nickname ? nickname.replace(/^@/, '').trim() : '';
+   if (!cleanNickname) return [];
+
+   try {
+      const res = await httpRequest.get(`users/@${cleanNickname}/videos`);
+      return res.data || [];
+   } catch (error) {
+      console.error('getUserVideos error:', error);
+      return [];
    }
 };
 
 export const followUser = async (nickname) => {
    try {
-      const cleanNickname = nickname ? nickname.replace(/^@/, '') : '';
+      const cleanNickname = nickname ? nickname.replace(/^@/, '').trim() : '';
       const res = await httpRequest.post(`users/@${cleanNickname}/follow`);
       if (typeof window !== 'undefined') {
          window.dispatchEvent(
@@ -207,7 +174,7 @@ export const followUser = async (nickname) => {
 
 export const unfollowUser = async (nickname) => {
    try {
-      const cleanNickname = nickname ? nickname.replace(/^@/, '') : '';
+      const cleanNickname = nickname ? nickname.replace(/^@/, '').trim() : '';
       const res = await httpRequest.post(`users/@${cleanNickname}/unfollow`);
       if (typeof window !== 'undefined') {
          window.dispatchEvent(
@@ -225,7 +192,7 @@ export const unfollowUser = async (nickname) => {
 
 export const updateUser = async (nickname, data) => {
    try {
-      const cleanNickname = nickname ? nickname.replace(/^@/, '') : '';
+      const cleanNickname = nickname ? nickname.replace(/^@/, '').trim() : '';
       const res = await httpRequest.patch(`users/@${cleanNickname}`, data);
       return res.data;
    } catch (error) {

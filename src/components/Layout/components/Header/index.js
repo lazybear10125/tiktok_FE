@@ -109,14 +109,14 @@ const rankSearchResults = (results, query) => {
 };
 
 function Header() {
-   const { currentUser, login, logout, openLoginModal } = useAuth();
+   const { currentUser, logout, openLoginModal } = useAuth();
    const navigate = useNavigate();
 
    const userMenu = [
       {
          icon: <FontAwesomeIcon icon={faUser} />,
          title: 'View profile',
-         to: currentUser?.nickname ? `/@${currentUser.nickname}` : '/@bear',
+         to: currentUser?.nickname ? `/@${currentUser.nickname}` : '/profile',
       },
       {
          icon: <FontAwesomeIcon icon={faCoins} />,
@@ -332,7 +332,9 @@ function Header() {
                   </>
                ) : (
                   <>
-                     <Button text onClick={openLoginModal}>Upload</Button>
+                     <Button text onClick={openLoginModal}>
+                        Upload
+                     </Button>
                      <Button primary onClick={openLoginModal}>
                         Log in
                      </Button>

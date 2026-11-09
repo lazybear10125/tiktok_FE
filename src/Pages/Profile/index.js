@@ -1,34 +1,37 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import Tippy from '@tippyjs/react/headless';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
    faCircleCheck,
-   faEllipsis,
-   faLink,
    faLock,
+   faShare,
+   faEllipsis,
+   faPenToSquare,
+   faLink,
+   faCheck,
+   faCode,
+   faPaperPlane,
    faFlag,
    faBan,
-   faCheck,
-   faCircleQuestion,
-   faPenToSquare,
-   faGear,
    faPlay,
+   faCircleQuestion,
+   faUser,
 } from '@fortawesome/free-solid-svg-icons';
+import { faFacebook, faWhatsapp, faTwitter } from '@fortawesome/free-brands-svg-icons';
 
 import Image from '~/components/Image';
 import Button from '~/components/Button';
 import { Wrapper as PopperWrapper } from '~/components/Popper';
 import { useAuth } from '~/context/AuthContext';
 import * as userServices from '~/services/userService';
-import ShareMenu from './ShareMenu';
 import EditProfileModal from './EditProfileModal';
+import images from '~/assets/images';
 import styles from './Profile.module.scss';
 
 const cx = classNames.bind(styles);
 
-const PLACEHOLDER_VIDEOS = Array.from({ length: 12 });
 const profileMemoryCache = new Map();
 
 const formatCount = (count) => {
@@ -44,21 +47,18 @@ function Profile() {
    const { currentUser, openLoginModal } = useAuth();
    let { nickname } = useParams();
 
-   // Khi truy cập /profile hoặc không có nickname, mặc định mở profile cá nhân ('bear')
-   if (!nickname || nickname === 'profile') {
-      nickname = 'bear';
+   // Phân biệt My Profile vs Other User Profile:
+   // Nếu route là /profile hoặc không có nickname trong URL, sử dụng nickname của tài khoản đang đăng nhập
+   let targetNickname = nickname ? nickname.replace(/^@/, '').trim() : '';
+   if (!targetNickname || targetNickname === 'profile' || targetNickname === 'me') {
+      if (currentUser && typeof currentUser === 'object' && currentUser.nickname) {
+         targetNickname = currentUser.nickname;
+      }
    }
-
-   const cleanNickname = nickname.replace(/^@/, '');
-   const isBearNickname =
-      cleanNickname.toLowerCase() === 'bear' ||
-      cleanNickname.toLowerCase() === 'profile' ||
-      cleanNickname.toLowerCase() === 'me';
-
-   const BEAR_AVATAR =
-      'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=100&h=100&crop=faces&q=80';
+   const cleanNickname = targetNickname;
 
    const [user, setUser] = useState(null);
+   const [userVideos, setUserVideos] = useState([]);
    const [loading, setLoading] = useState(true);
    const [activeTab, setActiveTab] = useState('videos');
    const [isFollowed, setIsFollowed] = useState(false);
@@ -72,22 +72,29 @@ function Profile() {
    const tabRefLiked = useRef(null);
    const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
-   const isMyProfile =
-      !!currentUser && (isBearNickname || !!user?.is_personal || user?.nickname?.toLowerCase() === 'bear');
+   // My Profile CHỈ TRUE khi ID hoặc nickname trùng khớp với authenticated currentUser
+   const isMyProfile = Boolean(
+      currentUser && cleanNickname && (
+         (currentUser.nickname && currentUser.nickname.toLowerCase() === cleanNickname.toLowerCase()) ||
+         (currentUser.id && user?.id && String(currentUser.id) === String(user.id))
+      )
+   );
 
-   const avatarSrc =
-      isMyProfile || isBearNickname || user?.is_personal || user?.nickname?.toLowerCase() === 'bear'
-         ? BEAR_AVATAR
-         : user?.avatar;
+   const avatarSrc = user?.avatar || user?.avatar_url || images.noImage;
 
-   // Reset follow and edit state on auth-logout or when currentUser is falsy
+   // Xóa cache và reset state khi đăng xuất hoặc đăng nhập tài khoản khác
    useEffect(() => {
-      const handleLogout = () => {
+      const handleAuthReset = () => {
+         profileMemoryCache.clear();
          setIsFollowed(false);
          setIsEditModalOpen(false);
       };
-      window.addEventListener('auth-logout', handleLogout);
-      return () => window.removeEventListener('auth-logout', handleLogout);
+      window.addEventListener('auth-logout', handleAuthReset);
+      window.addEventListener('auth-login', handleAuthReset);
+      return () => {
+         window.removeEventListener('auth-logout', handleAuthReset);
+         window.removeEventListener('auth-login', handleAuthReset);
+      };
    }, []);
 
    useEffect(() => {
@@ -97,7 +104,7 @@ function Profile() {
       }
    }, [currentUser]);
 
-   // Lắng nghe sự kiện Follow/Unfollow từ các component khác để cập nhật ngay lập tức
+   // Lắng nghe sự kiện Follow/Unfollow từ các component khác
    useEffect(() => {
       const handleFollowingChange = (e) => {
          const { nickname: changedNick, isFollowed: changedFollowed, resetAll } = e.detail || {};
@@ -114,10 +121,17 @@ function Profile() {
       return () => window.removeEventListener('following-changed', handleFollowingChange);
    }, [cleanNickname]);
 
+   // Fetch user profile and videos
    useEffect(() => {
       let isMounted = true;
 
-      // 1. Nếu đã có dữ liệu trong bộ nhớ đệm (cache), hiển thị tức thì 0ms không phải chờ
+      if (!cleanNickname) {
+         setUser(null);
+         setUserVideos([]);
+         setLoading(false);
+         return;
+      }
+
       const cached = profileMemoryCache.get(cleanNickname.toLowerCase());
       if (cached) {
          setUser(cached);
@@ -130,23 +144,29 @@ function Profile() {
 
       const fetchData = async () => {
          try {
-            const userData = await userServices.getUser(cleanNickname);
+            const [userData, videosData] = await Promise.all([
+               userServices.getUser(cleanNickname),
+               userServices.getUserVideos(cleanNickname),
+            ]);
+
             if (!isMounted) return;
 
             if (userData) {
-               if (isBearNickname || userData.is_personal || userData.nickname?.toLowerCase() === 'bear') {
-                  userData.avatar = BEAR_AVATAR;
-               }
                profileMemoryCache.set(cleanNickname.toLowerCase(), userData);
                setUser(userData);
+               setUserVideos(videosData || []);
                setIsFollowed(!!currentUser && !!userData.is_followed);
                setFollowersCount(userData.followers_count || 0);
             } else if (!cached) {
                setUser(null);
+               setUserVideos([]);
             }
          } catch (err) {
             console.error('Fetch profile error:', err);
-            if (isMounted && !cached) setUser(null);
+            if (isMounted && !cached) {
+               setUser(null);
+               setUserVideos([]);
+            }
          } finally {
             if (isMounted) setLoading(false);
          }
@@ -157,10 +177,11 @@ function Profile() {
       return () => {
          isMounted = false;
       };
-   }, [cleanNickname, isBearNickname, currentUser]);
+   }, [cleanNickname, currentUser]);
 
+   // Tab Indicator
    useEffect(() => {
-      let currentTabRef;
+      let currentTabRef = tabRefVideos.current;
       if (activeTab === 'videos') currentTabRef = tabRefVideos.current;
       else if (activeTab === 'favorites') currentTabRef = tabRefFavorites.current;
       else if (activeTab === 'liked') currentTabRef = tabRefLiked.current;
@@ -215,23 +236,84 @@ function Profile() {
             full_name: updatedUser.full_name,
             bio: updatedUser.bio,
          });
+         setUser((prev) => ({ ...prev, ...updatedUser }));
+         profileMemoryCache.set(cleanNickname.toLowerCase(), { ...user, ...updatedUser });
       } catch (err) {
          console.error('Update profile API failed:', err);
       }
-      setUser(updatedUser);
-      setToastMessage('Profile updated successfully!');
+   };
+
+   const handleCopyLink = () => {
+      navigator.clipboard.writeText(window.location.href);
+      setToastMessage('Link copied to clipboard!');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2500);
    };
 
+   const ShareMenu = () => (
+      <Tippy
+         interactive
+         delay={[0, 200]}
+         offset={[0, 10]}
+         placement="bottom-end"
+         render={(attrs) => (
+            <div className={cx('share-menu')} tabIndex="-1" {...attrs}>
+               <PopperWrapper>
+                  <div className={cx('share-list')}>
+                     <button className={cx('share-item')} onClick={handleCopyLink}>
+                        <FontAwesomeIcon icon={faLink} className={cx('share-icon')} />
+                        <span className={cx('share-title')}>Copy link</span>
+                     </button>
+                     <a
+                        href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={cx('share-item')}
+                     >
+                        <FontAwesomeIcon icon={faFacebook} className={cx('share-icon')} />
+                        <span className={cx('share-title')}>Share to Facebook</span>
+                     </a>
+                     <a
+                        href={`https://api.whatsapp.com/send?text=${encodeURIComponent(window.location.href)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={cx('share-item')}
+                     >
+                        <FontAwesomeIcon icon={faWhatsapp} className={cx('share-icon')} />
+                        <span className={cx('share-title')}>Share to WhatsApp</span>
+                     </a>
+                     <a
+                        href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={cx('share-item')}
+                     >
+                        <FontAwesomeIcon icon={faTwitter} className={cx('share-icon')} />
+                        <span className={cx('share-title')}>Share to Twitter</span>
+                     </a>
+                     <button className={cx('share-item')} onClick={handleCopyLink}>
+                        <FontAwesomeIcon icon={faCode} className={cx('share-icon')} />
+                        <span className={cx('share-title')}>Embed</span>
+                     </button>
+                  </div>
+               </PopperWrapper>
+            </div>
+         )}
+      >
+         <button className={cx('action-icon-btn')} title="Share">
+            <FontAwesomeIcon icon={faShare} />
+         </button>
+      </Tippy>
+   );
+
    const renderMoreMenu = (attrs) => (
-      <div className={cx('share-menu')} tabIndex="-1" {...attrs}>
+      <div className={cx('more-menu')} tabIndex="-1" {...attrs}>
          <PopperWrapper>
             <div className={cx('share-list')}>
                {isMyProfile ? (
-                  <button className={cx('share-item')}>
-                     <FontAwesomeIcon icon={faGear} className={cx('share-icon')} />
-                     <span className={cx('share-title')}>Settings</span>
+                  <button className={cx('share-item')} onClick={handleOpenEditModal}>
+                     <FontAwesomeIcon icon={faPenToSquare} className={cx('share-icon')} />
+                     <span className={cx('share-title')}>Edit profile</span>
                   </button>
                ) : (
                   <>
@@ -277,13 +359,23 @@ function Profile() {
                <div className={cx('not-found-icon')}>
                   <FontAwesomeIcon icon={faCircleQuestion} />
                </div>
-               <h3 className={cx('not-found-title')}>Couldn't find this account</h3>
+               <h3 className={cx('not-found-title')}>
+                  {!cleanNickname && !currentUser ? 'Log in to view your profile' : "Couldn't find this account"}
+               </h3>
                <p className={cx('not-found-desc')}>
-                  Looking for videos? Try browsing our trending creators, hashtags, and sounds.
+                  {!cleanNickname && !currentUser
+                     ? 'Manage your account, check notifications, comment on videos, and more.'
+                     : 'Looking for videos? Try browsing our trending creators, hashtags, and sounds.'}
                </p>
-               <Button primary to="/" className={cx('not-found-btn')}>
-                  Explore TikTok
-               </Button>
+               {!cleanNickname && !currentUser ? (
+                  <Button primary onClick={openLoginModal} className={cx('not-found-btn')}>
+                     Log in
+                  </Button>
+               ) : (
+                  <Button primary to="/" className={cx('not-found-btn')}>
+                     Explore TikTok
+                  </Button>
+               )}
             </div>
          </div>
       );
@@ -364,7 +456,7 @@ function Profile() {
             </div>
          </div>
 
-         {/* Tabs Navigation */}
+         {/* Navigation Tabs */}
          <div className={cx('tabs-container')}>
             <button
                ref={tabRefVideos}
@@ -378,7 +470,7 @@ function Profile() {
                className={cx('tab-btn', { active: activeTab === 'favorites' })}
                onClick={() => setActiveTab('favorites')}
             >
-               <FontAwesomeIcon icon={faLock} className={cx('tab-lock')} />
+               <FontAwesomeIcon icon={faLock} className={cx('tab-icon')} />
                <span>Favorites</span>
             </button>
             <button
@@ -386,7 +478,7 @@ function Profile() {
                className={cx('tab-btn', { active: activeTab === 'liked' })}
                onClick={() => setActiveTab('liked')}
             >
-               <FontAwesomeIcon icon={faLock} className={cx('tab-lock')} />
+               <FontAwesomeIcon icon={faLock} className={cx('tab-icon')} />
                <span>Liked</span>
             </button>
             <div className={cx('tab-indicator')} style={{ left: indicatorStyle.left, width: indicatorStyle.width }} />
@@ -395,21 +487,45 @@ function Profile() {
          {/* Tab Content */}
          <div className={cx('tab-content')}>
             {activeTab === 'videos' && (
-               <div className={cx('video-grid')}>
-                  {PLACEHOLDER_VIDEOS.map((_, index) => (
-                     <div key={index} className={cx('video-card')}>
-                        <div className={cx('video-placeholder-center')}>
-                           <FontAwesomeIcon icon={faPlay} className={cx('play-center-icon')} />
-                        </div>
-                        <div className={cx('video-card-footer')}>
-                           <div className={cx('video-views')}>
-                              <FontAwesomeIcon icon={faPlay} className={cx('views-icon')} />
-                              <span>0</span>
+               userVideos.length > 0 ? (
+                  <div className={cx('video-grid')}>
+                     {userVideos.map((video, index) => (
+                        <div key={video.id || index} className={cx('video-card')}>
+                           {video.thumb_url || video.cover_image_url ? (
+                              <img
+                                 src={video.thumb_url || video.cover_image_url}
+                                 alt={video.description || 'video'}
+                                 className={cx('video-thumb')}
+                              />
+                           ) : (
+                              <div className={cx('video-placeholder-center')}>
+                                 <FontAwesomeIcon icon={faPlay} className={cx('play-center-icon')} />
+                              </div>
+                           )}
+                           <div className={cx('video-card-footer')}>
+                              <div className={cx('video-views')}>
+                                 <FontAwesomeIcon icon={faPlay} className={cx('views-icon')} />
+                                 <span>{formatCount(video.views_count || video.plays_count || 0)}</span>
+                              </div>
                            </div>
                         </div>
+                     ))}
+                  </div>
+               ) : (
+                  <div className={cx('empty-tab')}>
+                     <div className={cx('empty-icon-circle')}>
+                        <FontAwesomeIcon icon={faUser} />
                      </div>
-                  ))}
-               </div>
+                     <h4 className={cx('empty-title')}>
+                        {isMyProfile ? 'Upload your first video' : 'No content'}
+                     </h4>
+                     <p className={cx('empty-subtitle')}>
+                        {isMyProfile
+                           ? 'Your videos will appear here.'
+                           : 'This user has not published any videos yet.'}
+                     </p>
+                  </div>
+               )
             )}
 
             {activeTab === 'favorites' && (

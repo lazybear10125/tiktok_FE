@@ -80,6 +80,13 @@
          - random article
 25.   - Login:
          - popper login
-26.   -
+26.   - bug:
+         - SignUp: vẫn lưu api key của @bear
+         - Following: tự follow profile
+         - Search không ra @bear khi SignUp account new
+         - Profile khi SignUp , như đứng trên api key @bear để coi profile
+27.   - fix:
+         - remote token api khỏi local store
+         - set /profile dựa theo accounts
 
 #### api nhiều data load chậm

@@ -237,7 +237,7 @@ function CommentsPopup({ isOpen, onClose, post, currentUser, openLoginModal }) {
          return;
       }
 
-      const userAvatar = currentUser?.nickname === 'bear' || !currentUser?.avatar ? BEAR_AVATAR : currentUser.avatar;
+      const userAvatar = currentUser?.avatar || currentUser?.avatar_url || images.noImage;
 
       const newComment = {
          id: Date.now(),
@@ -278,7 +278,7 @@ function CommentsPopup({ isOpen, onClose, post, currentUser, openLoginModal }) {
    if (!isOpen) return null;
 
    const currentUserAvatar =
-      currentUser?.nickname === 'bear' || !currentUser?.avatar ? BEAR_AVATAR : currentUser.avatar;
+      currentUser?.avatar || currentUser?.avatar_url || images.noImage;
 
    return (
       <div className={cx('wrapper')}>
@@ -297,7 +297,7 @@ function CommentsPopup({ isOpen, onClose, post, currentUser, openLoginModal }) {
             ) : (
                comments.map((item) => {
                   const isLiked = !!likedMap[item.id] || !!item.is_liked;
-                  const itemAvatar = item.user?.nickname === 'bear' ? BEAR_AVATAR : item.user?.avatar || images.noImage;
+                  const itemAvatar = item.user?.avatar || item.user?.avatar_url || images.noImage;
 
                   return (
                      <div key={item.id} className={cx('comment-item')}>

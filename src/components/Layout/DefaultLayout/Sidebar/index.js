@@ -122,7 +122,7 @@ function Sidebar() {
             {currentUser && (
                <MenuItem
                   title="Profile"
-                  to={currentUser?.nickname ? `/@${currentUser.nickname}` : '/@bear'}
+                  to={currentUser?.nickname ? `/@${currentUser.nickname}` : '/profile'}
                   icon={userAvatar}
                   activeIcon={userAvatar}
                />
