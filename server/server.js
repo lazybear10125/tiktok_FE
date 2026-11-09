@@ -7,7 +7,20 @@ const path = require('path');
 const pool = require('./db');
 const initDatabase = require('./scripts/init-db');
 
+// Dữ liệu mock dự phòng cho Cloud Render
+let mockUsers = require('./data/users');
+let mockVideos = require('./data/videos');
+let mockComments = require('./data/comments');
+let mockLives = require('./data/lives');
+let mockNotifications = [];
+try {
+  mockNotifications = require('./data/notifications');
+} catch (e) {
+  mockNotifications = [];
+}
+
 const app = express();
+let isMySQLActive = false;
 
 // ==========================================
 // MIDDLEWARES
@@ -53,7 +66,7 @@ const formatUser = (user, baseUrl) => {
     followings_count: Number(user.followings_count || 0),
     followers_count: Number(user.followers_count || 0),
     likes_count: Number(user.likes_count || 0),
-    avatar
+    avatar,
   };
 };
 
@@ -64,7 +77,9 @@ const formatFeedPost = (post, user, baseUrl) => {
     ? post.image_url
     : post.image_file
     ? resolveMediaUrl(post.image_file, baseUrl)
-    : (formattedUser ? formattedUser.avatar : null);
+    : formattedUser
+    ? formattedUser.avatar
+    : null;
 
   return {
     ...post,
@@ -74,7 +89,7 @@ const formatFeedPost = (post, user, baseUrl) => {
     shares_count: Number(post.shares_count || 0),
     views_count: Number(post.views_count || 0),
     image_url,
-    user: formattedUser
+    user: formattedUser,
   };
 };
 
@@ -85,7 +100,9 @@ const formatLive = (live, user, baseUrl) => {
     ? live.cover_url
     : live.image_file
     ? resolveMediaUrl(live.image_file, baseUrl)
-    : (formattedUser ? formattedUser.avatar : null);
+    : formattedUser
+    ? formattedUser.avatar
+    : null;
 
   return {
     ...live,
@@ -93,7 +110,7 @@ const formatLive = (live, user, baseUrl) => {
     viewer_count: Number(live.viewer_count || 0),
     likes_count: Number(live.likes_count || 0),
     cover_url,
-    user: formattedUser
+    user: formattedUser,
   };
 };
 
@@ -126,13 +143,14 @@ const formatNotification = (notif, actorUser, video, baseUrl) => {
   if (!notif) return null;
 
   let videoThumb = null;
-  if (video) {
+  const vidObj = video || (notif.video_id ? mockVideos.find((v) => v.id === notif.video_id) : null);
+  if (vidObj) {
     videoThumb =
-      video.thumb_url ||
-      (video.image_url
-        ? video.image_url
-        : video.image_file
-        ? resolveMediaUrl(video.image_file, baseUrl)
+      vidObj.thumb_url ||
+      (vidObj.image_url
+        ? vidObj.image_url
+        : vidObj.image_file
+        ? resolveMediaUrl(vidObj.image_file, baseUrl)
         : null);
   }
   if (!videoThumb && ['like', 'comment', 'mention', 'reply'].includes(notif.type.toLowerCase())) {
@@ -140,14 +158,15 @@ const formatNotification = (notif, actorUser, video, baseUrl) => {
       'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=120&q=80';
   }
 
-  const actor = actorUser
+  const actObj = actorUser || (notif.actor_id ? mockUsers.find((u) => u.id === notif.actor_id) : null);
+  const actor = actObj
     ? {
-        id: actorUser.id,
-        nickname: actorUser.nickname,
-        full_name: actorUser.full_name,
-        avatar: formatUser(actorUser, baseUrl).avatar,
-        tick: Boolean(actorUser.tick),
-        is_followed: Boolean(actorUser.is_followed),
+        id: actObj.id,
+        nickname: actObj.nickname,
+        full_name: actObj.full_name,
+        avatar: formatUser(actObj, baseUrl).avatar,
+        tick: Boolean(actObj.tick),
+        is_followed: Boolean(actObj.is_followed),
       }
     : {
         id: 0,
@@ -189,6 +208,16 @@ const formatNotification = (notif, actorUser, video, baseUrl) => {
   };
 };
 
+const normalizeText = (str = '') => {
+  return str
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .trim();
+};
+
 const getAuthUser = async (req) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -197,38 +226,63 @@ const getAuthUser = async (req) => {
       const parts = token.split('.');
       if (parts.length >= 2) {
         const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-        if (payload.id) {
-          const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [payload.id]);
-          if (rows.length > 0) return rows[0];
-        }
-        if (payload.nickname) {
-          const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(nickname) = ?', [
-            payload.nickname.toLowerCase(),
-          ]);
-          if (rows.length > 0) return rows[0];
+        if (isMySQLActive) {
+          if (payload.id) {
+            const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [payload.id]);
+            if (rows.length > 0) return rows[0];
+          }
+          if (payload.nickname) {
+            const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(nickname) = ?', [
+              payload.nickname.toLowerCase(),
+            ]);
+            if (rows.length > 0) return rows[0];
+          }
+        } else {
+          if (payload.id) {
+            const u = mockUsers.find((x) => x.id === payload.id);
+            if (u) return u;
+          }
+          if (payload.nickname) {
+            const u = mockUsers.find((x) => x.nickname.toLowerCase() === payload.nickname.toLowerCase());
+            if (u) return u;
+          }
         }
       }
     } catch (e) {
-      // Ignore token parsing error
+      // Ignore
     }
   }
+
   // Fallback to Bear or first user
-  const [rows] = await pool.query("SELECT * FROM users WHERE nickname = 'bear' LIMIT 1");
-  if (rows.length > 0) return rows[0];
-  const [first] = await pool.query('SELECT * FROM users ORDER BY id ASC LIMIT 1');
-  return first[0] || null;
+  if (isMySQLActive) {
+    const [rows] = await pool.query("SELECT * FROM users WHERE nickname = 'bear' LIMIT 1");
+    if (rows.length > 0) return rows[0];
+    const [first] = await pool.query('SELECT * FROM users ORDER BY id ASC LIMIT 1');
+    return first[0] || null;
+  } else {
+    return mockUsers.find((u) => u.nickname === 'bear') || mockUsers[0];
+  }
 };
 
 const findUserByParam = async (param) => {
   if (!param) return null;
   const clean = param.replace(/^@/, '').trim().toLowerCase();
   const idNum = parseInt(clean, 10);
-  if (!isNaN(idNum) && String(idNum) === clean) {
-    const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [idNum]);
-    if (rows.length > 0) return rows[0];
+
+  if (isMySQLActive) {
+    if (!isNaN(idNum) && String(idNum) === clean) {
+      const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [idNum]);
+      if (rows.length > 0) return rows[0];
+    }
+    const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(nickname) = ?', [clean]);
+    return rows[0] || null;
+  } else {
+    if (!isNaN(idNum)) {
+      const byId = mockUsers.find((u) => u.id === idNum);
+      if (byId) return byId;
+    }
+    return mockUsers.find((u) => u.nickname.toLowerCase() === clean);
   }
-  const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(nickname) = ?', [clean]);
-  return rows[0] || null;
 };
 
 const getUsersByIds = async (userIds) => {
@@ -236,9 +290,16 @@ const getUsersByIds = async (userIds) => {
   const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
   if (uniqueIds.length === 0) return new Map();
 
-  const [rows] = await pool.query('SELECT * FROM users WHERE id IN (?)', [uniqueIds]);
   const map = new Map();
-  rows.forEach((u) => map.set(u.id, u));
+  if (isMySQLActive) {
+    const [rows] = await pool.query('SELECT * FROM users WHERE id IN (?)', [uniqueIds]);
+    rows.forEach((u) => map.set(u.id, u));
+  } else {
+    uniqueIds.forEach((id) => {
+      const u = mockUsers.find((x) => x.id === id);
+      if (u) map.set(id, u);
+    });
+  }
   return map;
 };
 
@@ -255,43 +316,89 @@ const createNotification = async ({
 
   const normalizedType = type.toLowerCase();
 
-  const [existing] = await pool.query(
-    `SELECT * FROM notifications 
-     WHERE recipient_id = ? AND actor_id = ? AND type = ? 
-       AND (video_id = ? OR (video_id IS NULL AND ? IS NULL))
-       AND (comment_id = ? OR (comment_id IS NULL AND ? IS NULL))
-       AND is_read = 0 LIMIT 1`,
-    [recipient_id, actor_id, normalizedType, video_id, video_id, comment_id, comment_id]
-  );
+  if (isMySQLActive) {
+    const [existing] = await pool.query(
+      `SELECT * FROM notifications 
+       WHERE recipient_id = ? AND actor_id = ? AND type = ? 
+         AND (video_id = ? OR (video_id IS NULL AND ? IS NULL))
+         AND (comment_id = ? OR (comment_id IS NULL AND ? IS NULL))
+         AND is_read = 0 LIMIT 1`,
+      [recipient_id, actor_id, normalizedType, video_id, video_id, comment_id, comment_id]
+    );
 
-  if (existing.length > 0) {
-    await pool.query('UPDATE notifications SET created_at = NOW() WHERE id = ?', [existing[0].id]);
-    return { ...existing[0], created_at: new Date() };
+    if (existing.length > 0) {
+      await pool.query('UPDATE notifications SET created_at = NOW() WHERE id = ?', [existing[0].id]);
+      return { ...existing[0], created_at: new Date() };
+    }
+
+    const [maxRow] = await pool.query('SELECT MAX(id) as maxId FROM notifications');
+    const newId = (maxRow[0].maxId || 0) + 1;
+
+    await pool.query(
+      `INSERT INTO notifications (id, recipient_id, actor_id, type, content, video_id, comment_id, is_read, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())`,
+      [newId, recipient_id, actor_id, normalizedType, content || '', video_id || null, comment_id || null]
+    );
+
+    const [created] = await pool.query('SELECT * FROM notifications WHERE id = ?', [newId]);
+    return created[0];
+  } else {
+    const existing = mockNotifications.find(
+      (n) =>
+        n.recipient_id === recipient_id &&
+        n.actor_id === actor_id &&
+        n.type.toLowerCase() === normalizedType &&
+        n.video_id === video_id &&
+        n.comment_id === comment_id &&
+        !n.is_read
+    );
+    if (existing) {
+      existing.created_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      return existing;
+    }
+
+    const newId = mockNotifications.length > 0 ? Math.max(...mockNotifications.map((n) => n.id)) + 1 : 1;
+    const newNotif = {
+      id: newId,
+      recipient_id,
+      actor_id,
+      type: normalizedType,
+      video_id: video_id || null,
+      comment_id: comment_id || null,
+      content: content || '',
+      is_read: false,
+      created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    };
+
+    mockNotifications.unshift(newNotif);
+    return newNotif;
   }
-
-  const [maxRow] = await pool.query('SELECT MAX(id) as maxId FROM notifications');
-  const newId = (maxRow[0].maxId || 0) + 1;
-
-  await pool.query(
-    `INSERT INTO notifications (id, recipient_id, actor_id, type, content, video_id, comment_id, is_read, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())`,
-    [newId, recipient_id, actor_id, normalizedType, content || '', video_id || null, comment_id || null]
-  );
-
-  const [created] = await pool.query('SELECT * FROM notifications WHERE id = ?', [newId]);
-  return created[0];
 };
 
 const removeNotification = async ({ recipient_id, actor_id, type, video_id = null }) => {
   const normalizedType = type.toLowerCase();
-  let sql = 'DELETE FROM notifications WHERE recipient_id = ? AND actor_id = ? AND type = ? AND is_read = 0';
-  const params = [recipient_id, actor_id, normalizedType];
-  if (video_id) {
-    sql += ' AND video_id = ?';
-    params.push(video_id);
+  if (isMySQLActive) {
+    let sql = 'DELETE FROM notifications WHERE recipient_id = ? AND actor_id = ? AND type = ? AND is_read = 0';
+    const params = [recipient_id, actor_id, normalizedType];
+    if (video_id) {
+      sql += ' AND video_id = ?';
+      params.push(video_id);
+    }
+    sql += ' LIMIT 1';
+    await pool.query(sql, params);
+  } else {
+    const index = mockNotifications.findIndex(
+      (n) =>
+        n.recipient_id === recipient_id &&
+        n.actor_id === actor_id &&
+        n.type.toLowerCase() === normalizedType &&
+        (!video_id || n.video_id === video_id) &&
+        !n.is_read
+    );
+    if (index !== -1) {
+      mockNotifications.splice(index, 1);
+    }
   }
-  sql += ' LIMIT 1';
-  await pool.query(sql, params);
 };
 
 // ==========================================
@@ -303,24 +410,38 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, nickname } = req.body;
 
     let user = null;
-    if (nickname) {
-      const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(nickname) = ?', [nickname.trim().toLowerCase()]);
-      user = rows[0] || null;
-    } else if (email) {
-      const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(nickname) = ?', [
-        email.trim().toLowerCase(),
-        'bear',
-      ]);
-      user = rows[0] || null;
-    }
-
-    if (!user) {
-      const [rows] = await pool.query("SELECT * FROM users WHERE nickname = 'bear' LIMIT 1");
-      user = rows[0] || null;
-    }
-    if (!user) {
-      const [rows] = await pool.query('SELECT * FROM users ORDER BY id ASC LIMIT 1');
-      user = rows[0] || null;
+    if (isMySQLActive) {
+      if (nickname) {
+        const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(nickname) = ?', [
+          nickname.trim().toLowerCase(),
+        ]);
+        user = rows[0] || null;
+      } else if (email) {
+        const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(nickname) = ?', [
+          email.trim().toLowerCase(),
+          'bear',
+        ]);
+        user = rows[0] || null;
+      }
+      if (!user) {
+        const [rows] = await pool.query("SELECT * FROM users WHERE nickname = 'bear' LIMIT 1");
+        user = rows[0] || null;
+      }
+      if (!user) {
+        const [rows] = await pool.query('SELECT * FROM users ORDER BY id ASC LIMIT 1');
+        user = rows[0] || null;
+      }
+    } else {
+      if (nickname) {
+        user = mockUsers.find((u) => u.nickname.toLowerCase() === nickname.toLowerCase());
+      } else if (email) {
+        user = mockUsers.find(
+          (u) => (u.email && u.email.toLowerCase() === email.toLowerCase()) || u.nickname.toLowerCase() === 'bear'
+        );
+      }
+      if (!user) {
+        user = mockUsers.find((u) => u.nickname === 'bear') || mockUsers[0];
+      }
     }
 
     res.json({
@@ -345,36 +466,80 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     const cleanNick = nickname.replace(/^@/, '').trim();
-    const [existing] = await pool.query('SELECT id FROM users WHERE LOWER(nickname) = ?', [cleanNick.toLowerCase()]);
-    if (existing.length > 0) {
-      return res.status(400).json({ message: 'Nickname đã tồn tại' });
+
+    if (isMySQLActive) {
+      const [existing] = await pool.query('SELECT id FROM users WHERE LOWER(nickname) = ?', [
+        cleanNick.toLowerCase(),
+      ]);
+      if (existing.length > 0) {
+        return res.status(400).json({ message: 'Nickname đã tồn tại' });
+      }
+
+      const [maxRow] = await pool.query('SELECT MAX(id) as maxId FROM users');
+      const newId = (maxRow[0].maxId || 0) + 1;
+      const firstName = full_name ? full_name.split(' ').slice(0, -1).join(' ') : '';
+      const lastName = full_name ? full_name.split(' ').slice(-1).join(' ') : cleanNick;
+      const avatarUrl =
+        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80';
+
+      await pool.query(
+        `INSERT INTO users (
+          id, first_name, last_name, full_name, nickname, email,
+          avatar_url, tick, is_followed, is_personal, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, NOW(), NOW())`,
+        [newId, firstName, lastName, full_name || cleanNick, cleanNick, email || null, avatarUrl]
+      );
+
+      const [newUserRows] = await pool.query('SELECT * FROM users WHERE id = ?', [newId]);
+      const newUser = newUserRows[0];
+
+      return res.status(201).json({
+        data: formatUser(newUser, baseUrl),
+        token:
+          'mock-jwt-token-registered.' +
+          Buffer.from(JSON.stringify({ id: newUser.id, nickname: newUser.nickname })).toString('base64'),
+        message: 'Đăng ký tài khoản thành công',
+      });
+    } else {
+      const existing = mockUsers.find((u) => u.nickname.toLowerCase() === cleanNick.toLowerCase());
+      if (existing) {
+        return res.status(400).json({ message: 'Nickname đã tồn tại' });
+      }
+
+      const newUser = {
+        id: mockUsers.length > 0 ? Math.max(...mockUsers.map((u) => u.id)) + 1 : 1,
+        first_name: full_name ? full_name.split(' ').slice(0, -1).join(' ') : '',
+        last_name: full_name ? full_name.split(' ').slice(-1).join(' ') : cleanNick,
+        full_name: full_name || cleanNick,
+        nickname: cleanNick,
+        avatar_url:
+          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80',
+        avatar_file: '',
+        bio: '',
+        tick: false,
+        followings_count: 0,
+        followers_count: 0,
+        likes_count: 0,
+        website_url: '',
+        facebook_url: '',
+        youtube_url: '',
+        twitter_url: '',
+        instagram_url: '',
+        is_followed: false,
+        created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        updated_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      };
+
+      mockUsers.push(newUser);
+
+      return res.status(201).json({
+        data: formatUser(newUser, baseUrl),
+        token:
+          'mock-jwt-token-registered.' +
+          Buffer.from(JSON.stringify({ id: newUser.id, nickname: newUser.nickname })).toString('base64'),
+        message: 'Đăng ký tài khoản thành công',
+      });
     }
-
-    const [maxRow] = await pool.query('SELECT MAX(id) as maxId FROM users');
-    const newId = (maxRow[0].maxId || 0) + 1;
-    const firstName = full_name ? full_name.split(' ').slice(0, -1).join(' ') : '';
-    const lastName = full_name ? full_name.split(' ').slice(-1).join(' ') : cleanNick;
-    const avatarUrl =
-      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80';
-
-    await pool.query(
-      `INSERT INTO users (
-        id, first_name, last_name, full_name, nickname, email,
-        avatar_url, tick, is_followed, is_personal, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, NOW(), NOW())`,
-      [newId, firstName, lastName, full_name || cleanNick, cleanNick, email || null, avatarUrl]
-    );
-
-    const [newUserRows] = await pool.query('SELECT * FROM users WHERE id = ?', [newId]);
-    const newUser = newUserRows[0];
-
-    res.status(201).json({
-      data: formatUser(newUser, baseUrl),
-      token:
-        'mock-jwt-token-registered.' +
-        Buffer.from(JSON.stringify({ id: newUser.id, nickname: newUser.nickname })).toString('base64'),
-      message: 'Đăng ký tài khoản thành công',
-    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -410,17 +575,34 @@ app.get('/api/users/search', async (req, res) => {
       return res.json({ data: [] });
     }
 
-    const limit = type === 'less' ? 5 : 50;
-    const [userRows] = await pool.query(
-      `SELECT * FROM users 
-       WHERE nickname LIKE ? OR full_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?
-       LIMIT ?`,
-      [`%${rawQuery}%`, `%${rawQuery}%`, `%${rawQuery}%`, `%${rawQuery}%`, limit]
-    );
-
-    res.json({
-      data: userRows.map((u) => formatUser(u, baseUrl)),
-    });
+    if (isMySQLActive) {
+      const limit = type === 'less' ? 5 : 50;
+      const [userRows] = await pool.query(
+        `SELECT * FROM users 
+         WHERE nickname LIKE ? OR full_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?
+         LIMIT ?`,
+        [`%${rawQuery}%`, `%${rawQuery}%`, `%${rawQuery}%`, `%${rawQuery}%`, limit]
+      );
+      return res.json({
+        data: userRows.map((u) => formatUser(u, baseUrl)),
+      });
+    } else {
+      const query = normalizeText(rawQuery);
+      let results = mockUsers.filter((u) => {
+        return (
+          normalizeText(u.nickname).includes(query) ||
+          normalizeText(u.full_name).includes(query) ||
+          normalizeText(u.first_name).includes(query) ||
+          normalizeText(u.last_name).includes(query)
+        );
+      });
+      if (type === 'less') {
+        results = results.slice(0, 5);
+      }
+      return res.json({
+        data: results.map((u) => formatUser(u, baseUrl)),
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -435,17 +617,31 @@ app.get('/api/videos/search', async (req, res) => {
       return res.json({ data: [] });
     }
 
-    const [videoRows] = await pool.query(
-      `SELECT * FROM videos WHERE description LIKE ? OR music LIKE ? ORDER BY id DESC LIMIT 50`,
-      [`%${rawQuery}%`, `%${rawQuery}%`]
-    );
-
-    const userIds = videoRows.map((v) => v.user_id);
-    const userMap = await getUsersByIds(userIds);
-
-    res.json({
-      data: videoRows.map((v) => formatFeedPost(v, userMap.get(v.user_id), baseUrl)),
-    });
+    if (isMySQLActive) {
+      const [videoRows] = await pool.query(
+        `SELECT * FROM videos WHERE description LIKE ? OR music LIKE ? ORDER BY id DESC LIMIT 50`,
+        [`%${rawQuery}%`, `%${rawQuery}%`]
+      );
+      const userIds = videoRows.map((v) => v.user_id);
+      const userMap = await getUsersByIds(userIds);
+      return res.json({
+        data: videoRows.map((v) => formatFeedPost(v, userMap.get(v.user_id), baseUrl)),
+      });
+    } else {
+      const query = normalizeText(rawQuery);
+      const results = mockVideos.filter((v) => {
+        return (
+          normalizeText(v.description || '').includes(query) ||
+          normalizeText(v.music || '').includes(query)
+        );
+      });
+      return res.json({
+        data: results.map((v) => {
+          const user = mockUsers.find((u) => u.id === v.user_id);
+          return formatFeedPost(v, user, baseUrl);
+        }),
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -461,23 +657,43 @@ app.get('/api/users/suggested', async (req, res) => {
     const perPage = Math.max(1, parseInt(req.query.per_page) || 5);
     const offset = (page - 1) * perPage;
 
-    const [totalRow] = await pool.query('SELECT COUNT(*) as total FROM users');
-    const total = totalRow[0].total;
+    if (isMySQLActive) {
+      const [totalRow] = await pool.query('SELECT COUNT(*) as total FROM users');
+      const total = totalRow[0].total;
+      const [userRows] = await pool.query('SELECT * FROM users ORDER BY id ASC LIMIT ? OFFSET ?', [
+        perPage,
+        offset,
+      ]);
 
-    const [userRows] = await pool.query('SELECT * FROM users ORDER BY id ASC LIMIT ? OFFSET ?', [perPage, offset]);
-
-    res.json({
-      data: userRows.map((u) => formatUser(u, baseUrl)),
-      meta: {
-        pagination: {
-          total,
-          count: userRows.length,
-          per_page: perPage,
-          current_page: page,
-          total_pages: Math.ceil(total / perPage) || 1,
+      return res.json({
+        data: userRows.map((u) => formatUser(u, baseUrl)),
+        meta: {
+          pagination: {
+            total,
+            count: userRows.length,
+            per_page: perPage,
+            current_page: page,
+            total_pages: Math.ceil(total / perPage) || 1,
+          },
         },
-      },
-    });
+      });
+    } else {
+      const start = (page - 1) * perPage;
+      const paginatedUsers = mockUsers.slice(start, start + perPage);
+
+      return res.json({
+        data: paginatedUsers.map((u) => formatUser(u, baseUrl)),
+        meta: {
+          pagination: {
+            total: mockUsers.length,
+            count: paginatedUsers.length,
+            per_page: perPage,
+            current_page: page,
+            total_pages: Math.ceil(mockUsers.length / perPage),
+          },
+        },
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -490,26 +706,44 @@ app.get('/api/users/following', async (req, res) => {
     const perPage = Math.max(1, parseInt(req.query.per_page) || 5);
     const offset = (page - 1) * perPage;
 
-    const [totalRow] = await pool.query('SELECT COUNT(*) as total FROM users WHERE is_followed = 1');
-    const total = totalRow[0].total;
+    if (isMySQLActive) {
+      const [totalRow] = await pool.query('SELECT COUNT(*) as total FROM users WHERE is_followed = 1');
+      const total = totalRow[0].total;
+      const [userRows] = await pool.query(
+        'SELECT * FROM users WHERE is_followed = 1 ORDER BY id ASC LIMIT ? OFFSET ?',
+        [perPage, offset]
+      );
 
-    const [userRows] = await pool.query('SELECT * FROM users WHERE is_followed = 1 ORDER BY id ASC LIMIT ? OFFSET ?', [
-      perPage,
-      offset,
-    ]);
-
-    res.json({
-      data: userRows.map((u) => formatUser(u, baseUrl)),
-      meta: {
-        pagination: {
-          total,
-          count: userRows.length,
-          per_page: perPage,
-          current_page: page,
-          total_pages: Math.ceil(total / perPage) || 1,
+      return res.json({
+        data: userRows.map((u) => formatUser(u, baseUrl)),
+        meta: {
+          pagination: {
+            total,
+            count: userRows.length,
+            per_page: perPage,
+            current_page: page,
+            total_pages: Math.ceil(total / perPage) || 1,
+          },
         },
-      },
-    });
+      });
+    } else {
+      const followingUsers = mockUsers.filter((u) => u.is_followed);
+      const start = (page - 1) * perPage;
+      const paginatedUsers = followingUsers.slice(start, start + perPage);
+
+      return res.json({
+        data: paginatedUsers.map((u) => formatUser(u, baseUrl)),
+        meta: {
+          pagination: {
+            total: followingUsers.length,
+            count: paginatedUsers.length,
+            per_page: perPage,
+            current_page: page,
+            total_pages: Math.ceil(followingUsers.length / perPage) || 1,
+          },
+        },
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -562,47 +796,63 @@ const handleUpdateUserProfile = async (req, res) => {
     }
 
     const { full_name, bio, website_url, avatar, avatar_url, first_name, last_name } = req.body;
-    const updates = [];
-    const params = [];
 
-    if (full_name !== undefined) {
-      updates.push('full_name = ?');
-      params.push(full_name);
-    }
-    if (first_name !== undefined) {
-      updates.push('first_name = ?');
-      params.push(first_name);
-    }
-    if (last_name !== undefined) {
-      updates.push('last_name = ?');
-      params.push(last_name);
-    }
-    if (bio !== undefined) {
-      updates.push('bio = ?');
-      params.push(bio);
-    }
-    if (website_url !== undefined) {
-      updates.push('website_url = ?');
-      params.push(website_url);
-    }
-    const newAvatar = avatar_url !== undefined ? avatar_url : avatar !== undefined ? avatar : null;
-    if (newAvatar !== null) {
-      updates.push('avatar_url = ?');
-      params.push(newAvatar);
-    }
+    if (isMySQLActive) {
+      const updates = [];
+      const params = [];
 
-    if (updates.length > 0) {
-      updates.push('updated_at = NOW()');
-      params.push(user.id);
-      await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+      if (full_name !== undefined) {
+        updates.push('full_name = ?');
+        params.push(full_name);
+      }
+      if (first_name !== undefined) {
+        updates.push('first_name = ?');
+        params.push(first_name);
+      }
+      if (last_name !== undefined) {
+        updates.push('last_name = ?');
+        params.push(last_name);
+      }
+      if (bio !== undefined) {
+        updates.push('bio = ?');
+        params.push(bio);
+      }
+      if (website_url !== undefined) {
+        updates.push('website_url = ?');
+        params.push(website_url);
+      }
+      const newAvatar = avatar_url !== undefined ? avatar_url : avatar !== undefined ? avatar : null;
+      if (newAvatar !== null) {
+        updates.push('avatar_url = ?');
+        params.push(newAvatar);
+      }
+
+      if (updates.length > 0) {
+        updates.push('updated_at = NOW()');
+        params.push(user.id);
+        await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+      }
+
+      const [updatedRows] = await pool.query('SELECT * FROM users WHERE id = ?', [user.id]);
+      return res.json({
+        data: formatUser(updatedRows[0], baseUrl),
+        message: 'Profile updated successfully',
+      });
+    } else {
+      if (full_name !== undefined) user.full_name = full_name;
+      if (first_name !== undefined) user.first_name = first_name;
+      if (last_name !== undefined) user.last_name = last_name;
+      if (bio !== undefined) user.bio = bio;
+      if (website_url !== undefined) user.website_url = website_url;
+      if (avatar_url !== undefined) user.avatar_url = avatar_url;
+      if (avatar !== undefined && !avatar_url) user.avatar_url = avatar;
+      user.updated_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+      return res.json({
+        data: formatUser(user, baseUrl),
+        message: 'Profile updated successfully',
+      });
     }
-
-    const [updatedRows] = await pool.query('SELECT * FROM users WHERE id = ?', [user.id]);
-
-    res.json({
-      data: formatUser(updatedRows[0], baseUrl),
-      message: 'Profile updated successfully',
-    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -624,10 +874,17 @@ const handleGetUserVideos = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const [userVideos] = await pool.query('SELECT * FROM videos WHERE user_id = ? ORDER BY id DESC', [user.id]);
-    res.json({
-      data: userVideos.map((video) => formatFeedPost(video, user, baseUrl)),
-    });
+    if (isMySQLActive) {
+      const [userVideos] = await pool.query('SELECT * FROM videos WHERE user_id = ? ORDER BY id DESC', [user.id]);
+      return res.json({
+        data: userVideos.map((video) => formatFeedPost(video, user, baseUrl)),
+      });
+    } else {
+      const userVideos = mockVideos.filter((v) => v.user_id === user.id);
+      return res.json({
+        data: userVideos.map((video) => formatFeedPost(video, user, baseUrl)),
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -649,23 +906,37 @@ const handleFollow = async (req, res) => {
 
     const currentUser = await getAuthUser(req);
 
-    if (!user.is_followed) {
-      await pool.query('UPDATE users SET is_followed = 1, followers_count = followers_count + 1 WHERE id = ?', [
-        user.id,
-      ]);
+    if (isMySQLActive) {
+      if (!user.is_followed) {
+        await pool.query('UPDATE users SET is_followed = 1, followers_count = followers_count + 1 WHERE id = ?', [
+          user.id,
+        ]);
+      }
+      if (user.id !== currentUser.id) {
+        await createNotification({
+          recipient_id: user.id,
+          actor_id: currentUser.id,
+          type: 'follow',
+          content: 'started following you',
+        });
+      }
+      const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [user.id]);
+      return res.json({ data: formatUser(updated[0], baseUrl), message: 'Followed successfully' });
+    } else {
+      if (!user.is_followed) {
+        user.is_followed = true;
+        user.followers_count += 1;
+      }
+      if (user.id !== currentUser.id) {
+        await createNotification({
+          recipient_id: user.id,
+          actor_id: currentUser.id,
+          type: 'follow',
+          content: 'started following you',
+        });
+      }
+      return res.json({ data: formatUser(user, baseUrl), message: 'Followed successfully' });
     }
-
-    if (user.id !== currentUser.id) {
-      await createNotification({
-        recipient_id: user.id,
-        actor_id: currentUser.id,
-        type: 'follow',
-        content: 'started following you',
-      });
-    }
-
-    const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [user.id]);
-    res.json({ data: formatUser(updated[0], baseUrl), message: 'Followed successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -681,21 +952,32 @@ const handleUnfollow = async (req, res) => {
 
     const currentUser = await getAuthUser(req);
 
-    if (user.is_followed) {
-      await pool.query(
-        'UPDATE users SET is_followed = 0, followers_count = GREATEST(0, followers_count - 1) WHERE id = ?',
-        [user.id]
-      );
+    if (isMySQLActive) {
+      if (user.is_followed) {
+        await pool.query(
+          'UPDATE users SET is_followed = 0, followers_count = GREATEST(0, followers_count - 1) WHERE id = ?',
+          [user.id]
+        );
+      }
+      await removeNotification({
+        recipient_id: user.id,
+        actor_id: currentUser.id,
+        type: 'follow',
+      });
+      const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [user.id]);
+      return res.json({ data: formatUser(updated[0], baseUrl), message: 'Unfollowed successfully' });
+    } else {
+      if (user.is_followed) {
+        user.is_followed = false;
+        user.followers_count = Math.max(0, user.followers_count - 1);
+      }
+      await removeNotification({
+        recipient_id: user.id,
+        actor_id: currentUser.id,
+        type: 'follow',
+      });
+      return res.json({ data: formatUser(user, baseUrl), message: 'Unfollowed successfully' });
     }
-
-    await removeNotification({
-      recipient_id: user.id,
-      actor_id: currentUser.id,
-      type: 'follow',
-    });
-
-    const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [user.id]);
-    res.json({ data: formatUser(updated[0], baseUrl), message: 'Unfollowed successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -717,34 +999,61 @@ app.get('/api/videos', async (req, res) => {
     const perPage = Math.max(1, parseInt(req.query.per_page) || 10);
     const offset = (page - 1) * perPage;
 
-    let whereClause = '';
-    if (type === 'following') {
-      whereClause = 'WHERE user_id IN (SELECT id FROM users WHERE is_followed = 1)';
-    }
+    if (isMySQLActive) {
+      let whereClause = '';
+      if (type === 'following') {
+        whereClause = 'WHERE user_id IN (SELECT id FROM users WHERE is_followed = 1)';
+      }
 
-    const [totalRow] = await pool.query(`SELECT COUNT(*) as total FROM videos ${whereClause}`);
-    const total = totalRow[0].total;
+      const [totalRow] = await pool.query(`SELECT COUNT(*) as total FROM videos ${whereClause}`);
+      const total = totalRow[0].total;
 
-    const [videoRows] = await pool.query(
-      `SELECT * FROM videos ${whereClause} ORDER BY id ASC LIMIT ? OFFSET ?`,
-      [perPage, offset]
-    );
+      const [videoRows] = await pool.query(
+        `SELECT * FROM videos ${whereClause} ORDER BY id ASC LIMIT ? OFFSET ?`,
+        [perPage, offset]
+      );
 
-    const userIds = videoRows.map((v) => v.user_id);
-    const userMap = await getUsersByIds(userIds);
+      const userIds = videoRows.map((v) => v.user_id);
+      const userMap = await getUsersByIds(userIds);
 
-    res.json({
-      data: videoRows.map((video) => formatFeedPost(video, userMap.get(video.user_id), baseUrl)),
-      meta: {
-        pagination: {
-          total,
-          count: videoRows.length,
-          per_page: perPage,
-          current_page: page,
-          total_pages: Math.ceil(total / perPage) || 1,
+      return res.json({
+        data: videoRows.map((video) => formatFeedPost(video, userMap.get(video.user_id), baseUrl)),
+        meta: {
+          pagination: {
+            total,
+            count: videoRows.length,
+            per_page: perPage,
+            current_page: page,
+            total_pages: Math.ceil(total / perPage) || 1,
+          },
         },
-      },
-    });
+      });
+    } else {
+      let videoList = [...mockVideos];
+      if (type === 'following') {
+        const followingIds = mockUsers.filter((u) => u.is_followed).map((u) => u.id);
+        videoList = videoList.filter((v) => followingIds.includes(v.user_id));
+      }
+
+      const start = (page - 1) * perPage;
+      const paginatedVideos = videoList.slice(start, start + perPage);
+
+      return res.json({
+        data: paginatedVideos.map((v) => {
+          const user = mockUsers.find((u) => u.id === v.user_id);
+          return formatFeedPost(v, user, baseUrl);
+        }),
+        meta: {
+          pagination: {
+            total: videoList.length,
+            count: paginatedVideos.length,
+            per_page: perPage,
+            current_page: page,
+            total_pages: Math.ceil(videoList.length / perPage) || 1,
+          },
+        },
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -754,18 +1063,23 @@ app.get('/api/videos/:id', async (req, res) => {
   try {
     const baseUrl = getBaseUrl(req);
     const videoId = parseInt(req.params.id);
-    const [rows] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Video not found' });
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Video not found' });
+      const video = rows[0];
+      const [userRows] = await pool.query('SELECT * FROM users WHERE id = ?', [video.user_id]);
+      return res.json({
+        data: formatFeedPost(video, userRows[0] || null, baseUrl),
+      });
+    } else {
+      const video = mockVideos.find((v) => v.id === videoId);
+      if (!video) return res.status(404).json({ message: 'Video not found' });
+      const user = mockUsers.find((u) => u.id === video.user_id);
+      return res.json({
+        data: formatFeedPost(video, user || null, baseUrl),
+      });
     }
-
-    const video = rows[0];
-    const [userRows] = await pool.query('SELECT * FROM users WHERE id = ?', [video.user_id]);
-
-    res.json({
-      data: formatFeedPost(video, userRows[0] || null, baseUrl),
-    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -777,32 +1091,56 @@ app.post('/api/videos', async (req, res) => {
     const { description, file_url, thumb_url, music, user_id } = req.body;
 
     const authorId = user_id || 999;
-    const [authorRows] = await pool.query('SELECT * FROM users WHERE id = ?', [authorId]);
-    const author = authorRows[0] || (await getAuthUser(req));
+    const author = (await findUserByParam(String(authorId))) || (await getAuthUser(req));
 
-    const [maxRow] = await pool.query('SELECT MAX(id) as maxId FROM videos');
-    const newId = (maxRow[0].maxId || 0) + 1;
-    const uuid = 'vid-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
     const thumb = thumb_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&q=80';
     const file = file_url || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
     const desc = description || 'Video mới đăng tải #tiktok #creator';
     const bgm = music || `nhạc nền - ${author ? author.full_name || author.nickname : 'Creator'}`;
 
-    await pool.query(
-      `INSERT INTO videos (
-        id, uuid, user_id, thumb_url, file_url, description, music,
-        likes_count, comments_count, shares_count, views_count, is_liked,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 0, NOW(), NOW())`,
-      [newId, uuid, author ? author.id : 999, thumb, file, desc, bgm]
-    );
+    if (isMySQLActive) {
+      const [maxRow] = await pool.query('SELECT MAX(id) as maxId FROM videos');
+      const newId = (maxRow[0].maxId || 0) + 1;
+      const uuid = 'vid-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
 
-    const [createdRows] = await pool.query('SELECT * FROM videos WHERE id = ?', [newId]);
+      await pool.query(
+        `INSERT INTO videos (
+          id, uuid, user_id, thumb_url, file_url, description, music,
+          likes_count, comments_count, shares_count, views_count, is_liked,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 0, NOW(), NOW())`,
+        [newId, uuid, author ? author.id : 999, thumb, file, desc, bgm]
+      );
 
-    res.status(201).json({
-      data: formatFeedPost(createdRows[0], author, baseUrl),
-      message: 'Video uploaded successfully',
-    });
+      const [createdRows] = await pool.query('SELECT * FROM videos WHERE id = ?', [newId]);
+      return res.status(201).json({
+        data: formatFeedPost(createdRows[0], author, baseUrl),
+        message: 'Video uploaded successfully',
+      });
+    } else {
+      const newVideo = {
+        id: mockVideos.length > 0 ? Math.max(...mockVideos.map((v) => v.id)) + 1 : 1,
+        uuid: 'vid-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9),
+        user_id: author ? author.id : 999,
+        thumb_url: thumb,
+        file_url: file,
+        description: desc,
+        music: bgm,
+        likes_count: 0,
+        comments_count: 0,
+        shares_count: 0,
+        views_count: 1,
+        is_liked: false,
+        created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        updated_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      };
+
+      mockVideos.unshift(newVideo);
+      return res.status(201).json({
+        data: formatFeedPost(newVideo, author, baseUrl),
+        message: 'Video uploaded successfully',
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -811,17 +1149,24 @@ app.post('/api/videos', async (req, res) => {
 app.delete('/api/videos/:id', async (req, res) => {
   try {
     const videoId = parseInt(req.params.id);
-    const [rows] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Video not found' });
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Video not found' });
+      await pool.query('DELETE FROM videos WHERE id = ?', [videoId]);
+      return res.json({
+        data: rows[0],
+        message: 'Video deleted successfully',
+      });
+    } else {
+      const index = mockVideos.findIndex((v) => v.id === videoId);
+      if (index === -1) return res.status(404).json({ message: 'Video not found' });
+      const [deleted] = mockVideos.splice(index, 1);
+      return res.json({
+        data: deleted,
+        message: 'Video deleted successfully',
+      });
     }
-
-    await pool.query('DELETE FROM videos WHERE id = ?', [videoId]);
-    res.json({
-      data: rows[0],
-      message: 'Video deleted successfully',
-    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -830,11 +1175,18 @@ app.delete('/api/videos/:id', async (req, res) => {
 app.post('/api/videos/:id/view', async (req, res) => {
   try {
     const videoId = parseInt(req.params.id);
-    await pool.query('UPDATE videos SET views_count = views_count + 1 WHERE id = ?', [videoId]);
-    const [rows] = await pool.query('SELECT views_count FROM videos WHERE id = ?', [videoId]);
 
-    if (rows.length === 0) return res.status(404).json({ message: 'Video not found' });
-    res.json({ data: { views_count: Number(rows[0].views_count) } });
+    if (isMySQLActive) {
+      await pool.query('UPDATE videos SET views_count = views_count + 1 WHERE id = ?', [videoId]);
+      const [rows] = await pool.query('SELECT views_count FROM videos WHERE id = ?', [videoId]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Video not found' });
+      return res.json({ data: { views_count: Number(rows[0].views_count) } });
+    } else {
+      const video = mockVideos.find((v) => v.id === videoId);
+      if (!video) return res.status(404).json({ message: 'Video not found' });
+      video.views_count = (video.views_count || 0) + 1;
+      return res.json({ data: { views_count: video.views_count } });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -843,31 +1195,53 @@ app.post('/api/videos/:id/view', async (req, res) => {
 app.post('/api/videos/:id/like', async (req, res) => {
   try {
     const videoId = parseInt(req.params.id);
-    const [rows] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
-
-    if (rows.length === 0) return res.status(404).json({ message: 'Video not found' });
-    const video = rows[0];
-
     const currentUser = await getAuthUser(req);
     const actorId = req.body?.user_id ? parseInt(req.body.user_id) : currentUser.id;
 
-    if (!video.is_liked) {
-      await pool.query('UPDATE videos SET is_liked = 1, likes_count = likes_count + 1 WHERE id = ?', [videoId]);
-    }
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Video not found' });
+      const video = rows[0];
 
-    if (video.user_id && video.user_id !== actorId) {
-      await createNotification({
-        recipient_id: video.user_id,
-        actor_id: actorId,
-        type: 'like',
-        video_id: video.id,
-        content: 'liked your video',
-      });
-    }
+      if (!video.is_liked) {
+        await pool.query('UPDATE videos SET is_liked = 1, likes_count = likes_count + 1 WHERE id = ?', [videoId]);
+      }
 
-    const [updated] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
-    const [author] = await pool.query('SELECT * FROM users WHERE id = ?', [video.user_id]);
-    res.json({ data: formatFeedPost(updated[0], author[0] || null, getBaseUrl(req)) });
+      if (video.user_id && video.user_id !== actorId) {
+        await createNotification({
+          recipient_id: video.user_id,
+          actor_id: actorId,
+          type: 'like',
+          video_id: video.id,
+          content: 'liked your video',
+        });
+      }
+
+      const [updated] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
+      const [author] = await pool.query('SELECT * FROM users WHERE id = ?', [video.user_id]);
+      return res.json({ data: formatFeedPost(updated[0], author[0] || null, getBaseUrl(req)) });
+    } else {
+      const video = mockVideos.find((v) => v.id === videoId);
+      if (!video) return res.status(404).json({ message: 'Video not found' });
+
+      if (!video.is_liked) {
+        video.is_liked = true;
+        video.likes_count += 1;
+      }
+
+      if (video.user_id && video.user_id !== actorId) {
+        await createNotification({
+          recipient_id: video.user_id,
+          actor_id: actorId,
+          type: 'like',
+          video_id: video.id,
+          content: 'liked your video',
+        });
+      }
+
+      const author = mockUsers.find((u) => u.id === video.user_id);
+      return res.json({ data: formatFeedPost(video, author || null, getBaseUrl(req)) });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -876,32 +1250,53 @@ app.post('/api/videos/:id/like', async (req, res) => {
 app.post('/api/videos/:id/unlike', async (req, res) => {
   try {
     const videoId = parseInt(req.params.id);
-    const [rows] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
-
-    if (rows.length === 0) return res.status(404).json({ message: 'Video not found' });
-    const video = rows[0];
-
     const currentUser = await getAuthUser(req);
     const actorId = req.body?.user_id ? parseInt(req.body.user_id) : currentUser.id;
 
-    if (video.is_liked) {
-      await pool.query('UPDATE videos SET is_liked = 0, likes_count = GREATEST(0, likes_count - 1) WHERE id = ?', [
-        videoId,
-      ]);
-    }
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Video not found' });
+      const video = rows[0];
 
-    if (video.user_id) {
-      await removeNotification({
-        recipient_id: video.user_id,
-        actor_id: actorId,
-        type: 'like',
-        video_id: video.id,
-      });
-    }
+      if (video.is_liked) {
+        await pool.query('UPDATE videos SET is_liked = 0, likes_count = GREATEST(0, likes_count - 1) WHERE id = ?', [
+          videoId,
+        ]);
+      }
 
-    const [updated] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
-    const [author] = await pool.query('SELECT * FROM users WHERE id = ?', [video.user_id]);
-    res.json({ data: formatFeedPost(updated[0], author[0] || null, getBaseUrl(req)) });
+      if (video.user_id) {
+        await removeNotification({
+          recipient_id: video.user_id,
+          actor_id: actorId,
+          type: 'like',
+          video_id: video.id,
+        });
+      }
+
+      const [updated] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
+      const [author] = await pool.query('SELECT * FROM users WHERE id = ?', [video.user_id]);
+      return res.json({ data: formatFeedPost(updated[0], author[0] || null, getBaseUrl(req)) });
+    } else {
+      const video = mockVideos.find((v) => v.id === videoId);
+      if (!video) return res.status(404).json({ message: 'Video not found' });
+
+      if (video.is_liked) {
+        video.is_liked = false;
+        video.likes_count = Math.max(0, video.likes_count - 1);
+      }
+
+      if (video.user_id) {
+        await removeNotification({
+          recipient_id: video.user_id,
+          actor_id: actorId,
+          type: 'like',
+          video_id: video.id,
+        });
+      }
+
+      const author = mockUsers.find((u) => u.id === video.user_id);
+      return res.json({ data: formatFeedPost(video, author || null, getBaseUrl(req)) });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -915,18 +1310,33 @@ app.get('/api/videos/:id/comments', async (req, res) => {
     const baseUrl = getBaseUrl(req);
     const videoId = parseInt(req.params.id);
 
-    const [videoComments] = await pool.query('SELECT * FROM comments WHERE video_id = ? ORDER BY id DESC', [videoId]);
-    const userIds = videoComments.map((c) => c.user_id);
-    const userMap = await getUsersByIds(userIds);
+    if (isMySQLActive) {
+      const [videoComments] = await pool.query('SELECT * FROM comments WHERE video_id = ? ORDER BY id DESC', [
+        videoId,
+      ]);
+      const userIds = videoComments.map((c) => c.user_id);
+      const userMap = await getUsersByIds(userIds);
 
-    res.json({
-      data: videoComments.map((comment) => ({
-        ...comment,
-        likes_count: Number(comment.likes_count || 0),
-        is_liked: Boolean(comment.is_liked),
-        user: formatUser(userMap.get(comment.user_id), baseUrl),
-      })),
-    });
+      return res.json({
+        data: videoComments.map((comment) => ({
+          ...comment,
+          likes_count: Number(comment.likes_count || 0),
+          is_liked: Boolean(comment.is_liked),
+          user: formatUser(userMap.get(comment.user_id), baseUrl),
+        })),
+      });
+    } else {
+      const videoComments = mockComments.filter((c) => c.video_id === videoId);
+      return res.json({
+        data: videoComments.map((comment) => {
+          const user = mockUsers.find((u) => u.id === comment.user_id);
+          return {
+            ...comment,
+            user: user ? formatUser(user, baseUrl) : null,
+          };
+        }),
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -936,12 +1346,6 @@ app.post('/api/videos/:id/comments', async (req, res) => {
   try {
     const baseUrl = getBaseUrl(req);
     const videoId = parseInt(req.params.id);
-    const [vRows] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
-
-    if (vRows.length === 0) {
-      return res.status(404).json({ message: 'Video not found' });
-    }
-    const video = vRows[0];
 
     const { comment, user_id, reply_to_comment_id, parent_id } = req.body;
     if (!comment || !comment.trim()) {
@@ -950,79 +1354,154 @@ app.post('/api/videos/:id/comments', async (req, res) => {
 
     const currentUser = await getAuthUser(req);
     const authorId = user_id ? parseInt(user_id) : currentUser.id;
-    const [authorRows] = await pool.query('SELECT * FROM users WHERE id = ?', [authorId]);
-    const author = authorRows[0] || currentUser;
-
+    const author = (await findUserByParam(String(authorId))) || currentUser;
     const parentCommentId = reply_to_comment_id || parent_id || null;
 
-    const [maxRow] = await pool.query('SELECT MAX(id) as maxId FROM comments');
-    const newId = (maxRow[0].maxId || 0) + 1;
+    if (isMySQLActive) {
+      const [vRows] = await pool.query('SELECT * FROM videos WHERE id = ?', [videoId]);
+      if (vRows.length === 0) return res.status(404).json({ message: 'Video not found' });
+      const video = vRows[0];
 
-    await pool.query(
-      `INSERT INTO comments (id, video_id, user_id, parent_id, comment, likes_count, is_liked, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 0, 0, NOW(), NOW())`,
-      [newId, videoId, author.id, parentCommentId, comment.trim()]
-    );
+      const [maxRow] = await pool.query('SELECT MAX(id) as maxId FROM comments');
+      const newId = (maxRow[0].maxId || 0) + 1;
 
-    await pool.query('UPDATE videos SET comments_count = comments_count + 1 WHERE id = ?', [videoId]);
+      await pool.query(
+        `INSERT INTO comments (id, video_id, user_id, parent_id, comment, likes_count, is_liked, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 0, 0, NOW(), NOW())`,
+        [newId, videoId, author.id, parentCommentId, comment.trim()]
+      );
 
-    // 1. Thông báo REPLY
-    if (parentCommentId) {
-      const [parentRows] = await pool.query('SELECT * FROM comments WHERE id = ?', [parseInt(parentCommentId)]);
-      if (parentRows.length > 0 && parentRows[0].user_id !== author.id) {
-        await createNotification({
-          recipient_id: parentRows[0].user_id,
-          actor_id: author.id,
-          type: 'reply',
-          video_id: video.id,
-          comment_id: newId,
-          content: `replied to your comment: "${comment.trim().slice(0, 60)}"`,
-        });
-      }
-    }
+      await pool.query('UPDATE videos SET comments_count = comments_count + 1 WHERE id = ?', [videoId]);
 
-    // 2. Thông báo COMMENT
-    if (video.user_id && video.user_id !== author.id) {
-      await createNotification({
-        recipient_id: video.user_id,
-        actor_id: author.id,
-        type: 'comment',
-        video_id: video.id,
-        comment_id: newId,
-        content: `commented: "${comment.trim().slice(0, 60)}"`,
-      });
-    }
-
-    // 3. Thông báo MENTION
-    const mentionMatches = comment.match(/@([a-zA-Z0-9_.]+)/g);
-    if (mentionMatches) {
-      const mentionedNicks = [...new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()))];
-      for (const nick of mentionedNicks) {
-        const mentionedUser = await findUserByParam(nick);
-        if (mentionedUser && mentionedUser.id !== author.id && mentionedUser.id !== video.user_id) {
+      // Reply notif
+      if (parentCommentId) {
+        const [parentRows] = await pool.query('SELECT * FROM comments WHERE id = ?', [parseInt(parentCommentId)]);
+        if (parentRows.length > 0 && parentRows[0].user_id !== author.id) {
           await createNotification({
-            recipient_id: mentionedUser.id,
+            recipient_id: parentRows[0].user_id,
             actor_id: author.id,
-            type: 'mention',
+            type: 'reply',
             video_id: video.id,
             comment_id: newId,
-            content: `mentioned you in a comment: "${comment.trim().slice(0, 60)}"`,
+            content: `replied to your comment: "${comment.trim().slice(0, 60)}"`,
           });
         }
       }
-    }
 
-    const [newCommentRows] = await pool.query('SELECT * FROM comments WHERE id = ?', [newId]);
+      // Comment notif
+      if (video.user_id && video.user_id !== author.id) {
+        await createNotification({
+          recipient_id: video.user_id,
+          actor_id: author.id,
+          type: 'comment',
+          video_id: video.id,
+          comment_id: newId,
+          content: `commented: "${comment.trim().slice(0, 60)}"`,
+        });
+      }
 
-    res.status(201).json({
-      data: {
-        ...newCommentRows[0],
+      // Mention notifs
+      const mentionMatches = comment.match(/@([a-zA-Z0-9_.]+)/g);
+      if (mentionMatches) {
+        const mentionedNicks = [...new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()))];
+        for (const nick of mentionedNicks) {
+          const mentionedUser = await findUserByParam(nick);
+          if (mentionedUser && mentionedUser.id !== author.id && mentionedUser.id !== video.user_id) {
+            await createNotification({
+              recipient_id: mentionedUser.id,
+              actor_id: author.id,
+              type: 'mention',
+              video_id: video.id,
+              comment_id: newId,
+              content: `mentioned you in a comment: "${comment.trim().slice(0, 60)}"`,
+            });
+          }
+        }
+      }
+
+      const [newCommentRows] = await pool.query('SELECT * FROM comments WHERE id = ?', [newId]);
+      return res.status(201).json({
+        data: {
+          ...newCommentRows[0],
+          likes_count: 0,
+          is_liked: false,
+          user: formatUser(author, baseUrl),
+        },
+        message: 'Comment added successfully',
+      });
+    } else {
+      const video = mockVideos.find((v) => v.id === videoId);
+      if (!video) return res.status(404).json({ message: 'Video not found' });
+
+      const newComment = {
+        id: mockComments.length > 0 ? Math.max(...mockComments.map((c) => c.id)) + 1 : 1,
+        video_id: videoId,
+        user_id: author.id,
+        parent_id: parentCommentId,
+        comment: comment.trim(),
         likes_count: 0,
         is_liked: false,
-        user: formatUser(author, baseUrl),
-      },
-      message: 'Comment added successfully',
-    });
+        created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        updated_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      };
+
+      mockComments.unshift(newComment);
+      video.comments_count = (video.comments_count || 0) + 1;
+
+      // Reply notif
+      if (parentCommentId) {
+        const parentComment = mockComments.find((c) => c.id === parseInt(parentCommentId));
+        if (parentComment && parentComment.user_id !== author.id) {
+          await createNotification({
+            recipient_id: parentComment.user_id,
+            actor_id: author.id,
+            type: 'reply',
+            video_id: video.id,
+            comment_id: newComment.id,
+            content: `replied to your comment: "${newComment.comment.slice(0, 60)}"`,
+          });
+        }
+      }
+
+      // Comment notif
+      if (video.user_id && video.user_id !== author.id) {
+        await createNotification({
+          recipient_id: video.user_id,
+          actor_id: author.id,
+          type: 'comment',
+          video_id: video.id,
+          comment_id: newComment.id,
+          content: `commented: "${newComment.comment.slice(0, 60)}"`,
+        });
+      }
+
+      // Mention notifs
+      const mentionMatches = newComment.comment.match(/@([a-zA-Z0-9_.]+)/g);
+      if (mentionMatches) {
+        const mentionedNicks = [...new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()))];
+        for (const nick of mentionedNicks) {
+          const mentionedUser = await findUserByParam(nick);
+          if (mentionedUser && mentionedUser.id !== author.id && mentionedUser.id !== video.user_id) {
+            await createNotification({
+              recipient_id: mentionedUser.id,
+              actor_id: author.id,
+              type: 'mention',
+              video_id: video.id,
+              comment_id: newComment.id,
+              content: `mentioned you in a comment: "${newComment.comment.slice(0, 60)}"`,
+            });
+          }
+        }
+      }
+
+      return res.status(201).json({
+        data: {
+          ...newComment,
+          user: formatUser(author, baseUrl),
+        },
+        message: 'Comment added successfully',
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1031,22 +1510,32 @@ app.post('/api/videos/:id/comments', async (req, res) => {
 app.delete('/api/comments/:id', async (req, res) => {
   try {
     const commentId = parseInt(req.params.id);
-    const [rows] = await pool.query('SELECT * FROM comments WHERE id = ?', [commentId]);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Comment not found' });
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM comments WHERE id = ?', [commentId]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Comment not found' });
+      const deletedComment = rows[0];
+      await pool.query('DELETE FROM comments WHERE id = ?', [commentId]);
+      await pool.query('UPDATE videos SET comments_count = GREATEST(0, comments_count - 1) WHERE id = ?', [
+        deletedComment.video_id,
+      ]);
+      return res.json({
+        data: deletedComment,
+        message: 'Comment deleted successfully',
+      });
+    } else {
+      const index = mockComments.findIndex((c) => c.id === commentId);
+      if (index === -1) return res.status(404).json({ message: 'Comment not found' });
+      const [deletedComment] = mockComments.splice(index, 1);
+      const video = mockVideos.find((v) => v.id === deletedComment.video_id);
+      if (video && video.comments_count > 0) {
+        video.comments_count -= 1;
+      }
+      return res.json({
+        data: deletedComment,
+        message: 'Comment deleted successfully',
+      });
     }
-
-    const deletedComment = rows[0];
-    await pool.query('DELETE FROM comments WHERE id = ?', [commentId]);
-    await pool.query('UPDATE videos SET comments_count = GREATEST(0, comments_count - 1) WHERE id = ?', [
-      deletedComment.video_id,
-    ]);
-
-    res.json({
-      data: deletedComment,
-      message: 'Comment deleted successfully',
-    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1055,22 +1544,34 @@ app.delete('/api/comments/:id', async (req, res) => {
 app.post('/api/comments/:id/like', async (req, res) => {
   try {
     const commentId = parseInt(req.params.id);
-    const [rows] = await pool.query('SELECT * FROM comments WHERE id = ?', [commentId]);
 
-    if (rows.length === 0) return res.status(404).json({ message: 'Comment not found' });
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM comments WHERE id = ?', [commentId]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Comment not found' });
 
-    if (!rows[0].is_liked) {
-      await pool.query('UPDATE comments SET is_liked = 1, likes_count = likes_count + 1 WHERE id = ?', [commentId]);
+      if (!rows[0].is_liked) {
+        await pool.query('UPDATE comments SET is_liked = 1, likes_count = likes_count + 1 WHERE id = ?', [
+          commentId,
+        ]);
+      }
+
+      const [updated] = await pool.query('SELECT * FROM comments WHERE id = ?', [commentId]);
+      return res.json({
+        data: {
+          ...updated[0],
+          likes_count: Number(updated[0].likes_count),
+          is_liked: Boolean(updated[0].is_liked),
+        },
+      });
+    } else {
+      const comment = mockComments.find((c) => c.id === commentId);
+      if (!comment) return res.status(404).json({ message: 'Comment not found' });
+      if (!comment.is_liked) {
+        comment.is_liked = true;
+        comment.likes_count += 1;
+      }
+      return res.json({ data: comment });
     }
-
-    const [updated] = await pool.query('SELECT * FROM comments WHERE id = ?', [commentId]);
-    res.json({
-      data: {
-        ...updated[0],
-        likes_count: Number(updated[0].likes_count),
-        is_liked: Boolean(updated[0].is_liked),
-      },
-    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1079,25 +1580,35 @@ app.post('/api/comments/:id/like', async (req, res) => {
 app.post('/api/comments/:id/unlike', async (req, res) => {
   try {
     const commentId = parseInt(req.params.id);
-    const [rows] = await pool.query('SELECT * FROM comments WHERE id = ?', [commentId]);
 
-    if (rows.length === 0) return res.status(404).json({ message: 'Comment not found' });
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM comments WHERE id = ?', [commentId]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Comment not found' });
 
-    if (rows[0].is_liked) {
-      await pool.query(
-        'UPDATE comments SET is_liked = 0, likes_count = GREATEST(0, likes_count - 1) WHERE id = ?',
-        [commentId]
-      );
+      if (rows[0].is_liked) {
+        await pool.query(
+          'UPDATE comments SET is_liked = 0, likes_count = GREATEST(0, likes_count - 1) WHERE id = ?',
+          [commentId]
+        );
+      }
+
+      const [updated] = await pool.query('SELECT * FROM comments WHERE id = ?', [commentId]);
+      return res.json({
+        data: {
+          ...updated[0],
+          likes_count: Number(updated[0].likes_count),
+          is_liked: Boolean(updated[0].is_liked),
+        },
+      });
+    } else {
+      const comment = mockComments.find((c) => c.id === commentId);
+      if (!comment) return res.status(404).json({ message: 'Comment not found' });
+      if (comment.is_liked) {
+        comment.is_liked = false;
+        comment.likes_count = Math.max(0, comment.likes_count - 1);
+      }
+      return res.json({ data: comment });
     }
-
-    const [updated] = await pool.query('SELECT * FROM comments WHERE id = ?', [commentId]);
-    res.json({
-      data: {
-        ...updated[0],
-        likes_count: Number(updated[0].likes_count),
-        is_liked: Boolean(updated[0].is_liked),
-      },
-    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1113,25 +1624,49 @@ app.get('/api/lives', async (req, res) => {
     const perPage = Math.max(1, parseInt(req.query.per_page) || 10);
     const offset = (page - 1) * perPage;
 
-    const [totalRow] = await pool.query('SELECT COUNT(*) as total FROM lives');
-    const total = totalRow[0].total;
+    if (isMySQLActive) {
+      const [totalRow] = await pool.query('SELECT COUNT(*) as total FROM lives');
+      const total = totalRow[0].total;
 
-    const [liveRows] = await pool.query('SELECT * FROM lives ORDER BY id ASC LIMIT ? OFFSET ?', [perPage, offset]);
-    const userIds = liveRows.map((l) => l.user_id);
-    const userMap = await getUsersByIds(userIds);
+      const [liveRows] = await pool.query('SELECT * FROM lives ORDER BY id ASC LIMIT ? OFFSET ?', [
+        perPage,
+        offset,
+      ]);
+      const userIds = liveRows.map((l) => l.user_id);
+      const userMap = await getUsersByIds(userIds);
 
-    res.json({
-      data: liveRows.map((live) => formatLive(live, userMap.get(live.user_id), baseUrl)),
-      meta: {
-        pagination: {
-          total,
-          count: liveRows.length,
-          per_page: perPage,
-          current_page: page,
-          total_pages: Math.ceil(total / perPage) || 1,
+      return res.json({
+        data: liveRows.map((live) => formatLive(live, userMap.get(live.user_id), baseUrl)),
+        meta: {
+          pagination: {
+            total,
+            count: liveRows.length,
+            per_page: perPage,
+            current_page: page,
+            total_pages: Math.ceil(total / perPage) || 1,
+          },
         },
-      },
-    });
+      });
+    } else {
+      const start = (page - 1) * perPage;
+      const paginatedLives = mockLives.slice(start, start + perPage);
+
+      return res.json({
+        data: paginatedLives.map((live) => {
+          const user = mockUsers.find((u) => u.id === live.user_id);
+          return formatLive(live, user, baseUrl);
+        }),
+        meta: {
+          pagination: {
+            total: mockLives.length,
+            count: paginatedLives.length,
+            per_page: perPage,
+            current_page: page,
+            total_pages: Math.ceil(mockLives.length / perPage) || 1,
+          },
+        },
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1141,21 +1676,27 @@ app.get('/api/lives/:id', async (req, res) => {
   try {
     const baseUrl = getBaseUrl(req);
     const idOrRoom = req.params.id;
-    const [rows] = await pool.query('SELECT * FROM lives WHERE id = ? OR room_id = ? LIMIT 1', [
-      parseInt(idOrRoom) || 0,
-      idOrRoom,
-    ]);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Live stream not found' });
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM lives WHERE id = ? OR room_id = ? LIMIT 1', [
+        parseInt(idOrRoom) || 0,
+        idOrRoom,
+      ]);
+
+      if (rows.length === 0) return res.status(404).json({ message: 'Live stream not found' });
+      const live = rows[0];
+      const [userRows] = await pool.query('SELECT * FROM users WHERE id = ?', [live.user_id]);
+      return res.json({
+        data: formatLive(live, userRows[0] || null, baseUrl),
+      });
+    } else {
+      const live = mockLives.find((l) => l.id === parseInt(idOrRoom) || l.room_id === idOrRoom);
+      if (!live) return res.status(404).json({ message: 'Live stream not found' });
+      const user = mockUsers.find((u) => u.id === live.user_id);
+      return res.json({
+        data: formatLive(live, user, baseUrl),
+      });
     }
-
-    const live = rows[0];
-    const [userRows] = await pool.query('SELECT * FROM users WHERE id = ?', [live.user_id]);
-
-    res.json({
-      data: formatLive(live, userRows[0] || null, baseUrl),
-    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1164,25 +1705,35 @@ app.get('/api/lives/:id', async (req, res) => {
 app.post('/api/lives/:id/like', async (req, res) => {
   try {
     const idOrRoom = req.params.id;
-    const [rows] = await pool.query('SELECT * FROM lives WHERE id = ? OR room_id = ? LIMIT 1', [
-      parseInt(idOrRoom) || 0,
-      idOrRoom,
-    ]);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Live stream not found' });
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM lives WHERE id = ? OR room_id = ? LIMIT 1', [
+        parseInt(idOrRoom) || 0,
+        idOrRoom,
+      ]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Live stream not found' });
+      const live = rows[0];
+      await pool.query('UPDATE lives SET likes_count = likes_count + 1 WHERE id = ?', [live.id]);
+
+      return res.json({
+        data: {
+          id: live.id,
+          room_id: live.room_id,
+          likes_count: Number(live.likes_count) + 1,
+        },
+      });
+    } else {
+      const live = mockLives.find((l) => l.id === parseInt(idOrRoom) || l.room_id === idOrRoom);
+      if (!live) return res.status(404).json({ message: 'Live stream not found' });
+      live.likes_count = (live.likes_count || 0) + 1;
+      return res.json({
+        data: {
+          id: live.id,
+          room_id: live.room_id,
+          likes_count: live.likes_count,
+        },
+      });
     }
-
-    const live = rows[0];
-    await pool.query('UPDATE lives SET likes_count = likes_count + 1 WHERE id = ?', [live.id]);
-
-    res.json({
-      data: {
-        id: live.id,
-        room_id: live.room_id,
-        likes_count: Number(live.likes_count) + 1,
-      },
-    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1200,71 +1751,113 @@ app.get('/api/notifications', async (req, res) => {
     const perPage = Math.max(1, parseInt(req.query.per_page) || 20);
     const offset = (page - 1) * perPage;
 
-    let typeFilter = '';
-    const params = [currentUser.id];
+    if (isMySQLActive) {
+      let typeFilter = '';
+      const params = [currentUser.id];
 
-    if (typeParam && typeParam !== 'all') {
-      if (typeParam === 'likes' || typeParam === 'like') {
-        typeFilter = "AND type = 'like'";
-      } else if (typeParam === 'comments' || typeParam === 'comment') {
-        typeFilter = "AND type IN ('comment', 'reply')";
-      } else if (typeParam === 'replies' || typeParam === 'reply') {
-        typeFilter = "AND type = 'reply'";
-      } else if (typeParam === 'mentions' || typeParam === 'mention') {
-        typeFilter = "AND type = 'mention'";
-      } else if (typeParam === 'followers' || typeParam === 'follow') {
-        typeFilter = "AND type = 'follow'";
-      } else {
-        typeFilter = 'AND type = ?';
-        params.push(typeParam);
+      if (typeParam && typeParam !== 'all') {
+        if (typeParam === 'likes' || typeParam === 'like') {
+          typeFilter = "AND type = 'like'";
+        } else if (typeParam === 'comments' || typeParam === 'comment') {
+          typeFilter = "AND type IN ('comment', 'reply')";
+        } else if (typeParam === 'replies' || typeParam === 'reply') {
+          typeFilter = "AND type = 'reply'";
+        } else if (typeParam === 'mentions' || typeParam === 'mention') {
+          typeFilter = "AND type = 'mention'";
+        } else if (typeParam === 'followers' || typeParam === 'follow') {
+          typeFilter = "AND type = 'follow'";
+        } else {
+          typeFilter = 'AND type = ?';
+          params.push(typeParam);
+        }
       }
-    }
 
-    const [totalRow] = await pool.query(
-      `SELECT COUNT(*) as total FROM notifications WHERE recipient_id = ? ${typeFilter}`,
-      params
-    );
-    const total = totalRow[0].total;
+      const [totalRow] = await pool.query(
+        `SELECT COUNT(*) as total FROM notifications WHERE recipient_id = ? ${typeFilter}`,
+        params
+      );
+      const total = totalRow[0].total;
 
-    const [unreadRow] = await pool.query(
-      'SELECT COUNT(*) as unread FROM notifications WHERE recipient_id = ? AND is_read = 0',
-      [currentUser.id]
-    );
-    const unreadCount = Number(unreadRow[0].unread || 0);
+      const [unreadRow] = await pool.query(
+        'SELECT COUNT(*) as unread FROM notifications WHERE recipient_id = ? AND is_read = 0',
+        [currentUser.id]
+      );
+      const unreadCount = Number(unreadRow[0].unread || 0);
 
-    const queryParams = [...params, perPage, offset];
-    const [notifRows] = await pool.query(
-      `SELECT * FROM notifications WHERE recipient_id = ? ${typeFilter} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
-      queryParams
-    );
+      const queryParams = [...params, perPage, offset];
+      const [notifRows] = await pool.query(
+        `SELECT * FROM notifications WHERE recipient_id = ? ${typeFilter} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+        queryParams
+      );
 
-    const actorIds = notifRows.map((n) => n.actor_id).filter(Boolean);
-    const videoIds = notifRows.map((n) => n.video_id).filter(Boolean);
+      const actorIds = notifRows.map((n) => n.actor_id).filter(Boolean);
+      const videoIds = notifRows.map((n) => n.video_id).filter(Boolean);
 
-    const actorMap = await getUsersByIds(actorIds);
+      const actorMap = await getUsersByIds(actorIds);
 
-    const videoMap = new Map();
-    if (videoIds.length > 0) {
-      const [vRows] = await pool.query('SELECT * FROM videos WHERE id IN (?)', [Array.from(new Set(videoIds))]);
-      vRows.forEach((v) => videoMap.set(v.id, v));
-    }
+      const videoMap = new Map();
+      if (videoIds.length > 0) {
+        const [vRows] = await pool.query('SELECT * FROM videos WHERE id IN (?)', [Array.from(new Set(videoIds))]);
+        vRows.forEach((v) => videoMap.set(v.id, v));
+      }
 
-    res.json({
-      data: notifRows.map((n) =>
-        formatNotification(n, actorMap.get(n.actor_id) || null, videoMap.get(n.video_id) || null, baseUrl)
-      ),
-      meta: {
-        pagination: {
-          total,
-          count: notifRows.length,
-          per_page: perPage,
-          current_page: page,
-          total_pages: Math.ceil(total / perPage) || 1,
+      return res.json({
+        data: notifRows.map((n) =>
+          formatNotification(n, actorMap.get(n.actor_id) || null, videoMap.get(n.video_id) || null, baseUrl)
+        ),
+        meta: {
+          pagination: {
+            total,
+            count: notifRows.length,
+            per_page: perPage,
+            current_page: page,
+            total_pages: Math.ceil(total / perPage) || 1,
+          },
+          unread_count: unreadCount,
+          unreadCount,
         },
-        unread_count: unreadCount,
-        unreadCount,
-      },
-    });
+      });
+    } else {
+      let userNotifs = mockNotifications.filter((n) => n.recipient_id === currentUser.id);
+
+      if (typeParam && typeParam !== 'all') {
+        userNotifs = userNotifs.filter((n) => {
+          const t = n.type.toLowerCase();
+          if (typeParam === 'likes' || typeParam === 'like') return t === 'like';
+          if (typeParam === 'comments' || typeParam === 'comment') return t === 'comment' || t === 'reply';
+          if (typeParam === 'replies' || typeParam === 'reply') return t === 'reply';
+          if (typeParam === 'mentions' || typeParam === 'mention') return t === 'mention';
+          if (typeParam === 'followers' || typeParam === 'follow') return t === 'follow';
+          if (typeParam === 'system') return t === 'system';
+          if (typeParam === 'qa') return t === 'qa';
+          return t === typeParam;
+        });
+      }
+
+      userNotifs.sort(
+        (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0) || b.id - a.id
+      );
+
+      const paginated = userNotifs.slice(offset, offset + perPage);
+      const unreadCount = mockNotifications.filter(
+        (n) => n.recipient_id === currentUser.id && !n.is_read
+      ).length;
+
+      return res.json({
+        data: paginated.map((n) => formatNotification(n, null, null, baseUrl)),
+        meta: {
+          pagination: {
+            total: userNotifs.length,
+            count: paginated.length,
+            per_page: perPage,
+            current_page: page,
+            total_pages: Math.ceil(userNotifs.length / perPage) || 1,
+          },
+          unread_count: unreadCount,
+          unreadCount,
+        },
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1273,20 +1866,36 @@ app.get('/api/notifications', async (req, res) => {
 app.get('/api/notifications/unread-count', async (req, res) => {
   try {
     const currentUser = await getAuthUser(req);
-    const [rows] = await pool.query(
-      'SELECT COUNT(*) as count FROM notifications WHERE recipient_id = ? AND is_read = 0',
-      [currentUser.id]
-    );
-    const unreadCount = Number(rows[0].count || 0);
 
-    res.json({
-      data: {
+    if (isMySQLActive) {
+      const [rows] = await pool.query(
+        'SELECT COUNT(*) as count FROM notifications WHERE recipient_id = ? AND is_read = 0',
+        [currentUser.id]
+      );
+      const unreadCount = Number(rows[0].count || 0);
+
+      return res.json({
+        data: {
+          unread_count: unreadCount,
+          unreadCount,
+        },
         unread_count: unreadCount,
         unreadCount,
-      },
-      unread_count: unreadCount,
-      unreadCount,
-    });
+      });
+    } else {
+      const unreadCount = mockNotifications.filter(
+        (n) => n.recipient_id === currentUser.id && !n.is_read
+      ).length;
+
+      return res.json({
+        data: {
+          unread_count: unreadCount,
+          unreadCount,
+        },
+        unread_count: unreadCount,
+        unreadCount,
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1298,25 +1907,38 @@ const handleMarkNotificationRead = async (req, res) => {
     const notifId = parseInt(req.params.id);
     const currentUser = await getAuthUser(req);
 
-    const [rows] = await pool.query('SELECT * FROM notifications WHERE id = ?', [notifId]);
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Notification not found' });
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM notifications WHERE id = ?', [notifId]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Notification not found' });
+      const notif = rows[0];
+
+      if (notif.recipient_id !== currentUser.id) {
+        return res.status(403).json({ message: 'Forbidden: You cannot access other users notifications' });
+      }
+
+      await pool.query('UPDATE notifications SET is_read = 1 WHERE id = ?', [notifId]);
+      const [updated] = await pool.query('SELECT * FROM notifications WHERE id = ?', [notifId]);
+      const [actor] = notif.actor_id ? await pool.query('SELECT * FROM users WHERE id = ?', [notif.actor_id]) : [[]];
+      const [video] = notif.video_id ? await pool.query('SELECT * FROM videos WHERE id = ?', [notif.video_id]) : [[]];
+
+      return res.json({
+        data: formatNotification(updated[0], actor[0] || null, video[0] || null, baseUrl),
+        message: 'Notification marked as read',
+      });
+    } else {
+      const notif = mockNotifications.find((n) => n.id === notifId);
+      if (!notif) return res.status(404).json({ message: 'Notification not found' });
+
+      if (notif.recipient_id !== currentUser.id) {
+        return res.status(403).json({ message: 'Forbidden: You cannot access other users notifications' });
+      }
+
+      notif.is_read = true;
+      return res.json({
+        data: formatNotification(notif, null, null, baseUrl),
+        message: 'Notification marked as read',
+      });
     }
-
-    const notif = rows[0];
-    if (notif.recipient_id !== currentUser.id) {
-      return res.status(403).json({ message: 'Forbidden: You cannot access other users notifications' });
-    }
-
-    await pool.query('UPDATE notifications SET is_read = 1 WHERE id = ?', [notifId]);
-    const [updated] = await pool.query('SELECT * FROM notifications WHERE id = ?', [notifId]);
-    const [actor] = notif.actor_id ? await pool.query('SELECT * FROM users WHERE id = ?', [notif.actor_id]) : [[]];
-    const [video] = notif.video_id ? await pool.query('SELECT * FROM videos WHERE id = ?', [notif.video_id]) : [[]];
-
-    res.json({
-      data: formatNotification(updated[0], actor[0] || null, video[0] || null, baseUrl),
-      message: 'Notification marked as read',
-    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1328,7 +1950,16 @@ app.patch('/api/notifications/:id/read', handleMarkNotificationRead);
 const handleMarkAllNotificationsRead = async (req, res) => {
   try {
     const currentUser = await getAuthUser(req);
-    await pool.query('UPDATE notifications SET is_read = 1 WHERE recipient_id = ?', [currentUser.id]);
+
+    if (isMySQLActive) {
+      await pool.query('UPDATE notifications SET is_read = 1 WHERE recipient_id = ?', [currentUser.id]);
+    } else {
+      mockNotifications.forEach((n) => {
+        if (n.recipient_id === currentUser.id) {
+          n.is_read = true;
+        }
+      });
+    }
 
     res.json({
       message: 'All notifications marked as read',
@@ -1348,20 +1979,33 @@ app.delete('/api/notifications/:id', async (req, res) => {
     const notifId = parseInt(req.params.id);
     const currentUser = await getAuthUser(req);
 
-    const [rows] = await pool.query('SELECT * FROM notifications WHERE id = ?', [notifId]);
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Notification not found' });
-    }
+    if (isMySQLActive) {
+      const [rows] = await pool.query('SELECT * FROM notifications WHERE id = ?', [notifId]);
+      if (rows.length === 0) return res.status(404).json({ message: 'Notification not found' });
 
-    if (rows[0].recipient_id !== currentUser.id) {
-      return res.status(403).json({ message: 'Forbidden: You cannot delete other users notifications' });
-    }
+      if (rows[0].recipient_id !== currentUser.id) {
+        return res.status(403).json({ message: 'Forbidden: You cannot delete other users notifications' });
+      }
 
-    await pool.query('DELETE FROM notifications WHERE id = ?', [notifId]);
-    res.json({
-      data: rows[0],
-      message: 'Notification deleted successfully',
-    });
+      await pool.query('DELETE FROM notifications WHERE id = ?', [notifId]);
+      return res.json({
+        data: rows[0],
+        message: 'Notification deleted successfully',
+      });
+    } else {
+      const index = mockNotifications.findIndex((n) => n.id === notifId);
+      if (index === -1) return res.status(404).json({ message: 'Notification not found' });
+
+      if (mockNotifications[index].recipient_id !== currentUser.id) {
+        return res.status(403).json({ message: 'Forbidden: You cannot delete other users notifications' });
+      }
+
+      const [deleted] = mockNotifications.splice(index, 1);
+      return res.json({
+        data: deleted,
+        message: 'Notification deleted successfully',
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1370,12 +2014,25 @@ app.delete('/api/notifications/:id', async (req, res) => {
 app.delete('/api/notifications', async (req, res) => {
   try {
     const currentUser = await getAuthUser(req);
-    const [result] = await pool.query('DELETE FROM notifications WHERE recipient_id = ?', [currentUser.id]);
 
-    res.json({
-      message: 'All notifications deleted successfully',
-      deleted_count: result.affectedRows,
-    });
+    if (isMySQLActive) {
+      const [result] = await pool.query('DELETE FROM notifications WHERE recipient_id = ?', [currentUser.id]);
+      return res.json({
+        message: 'All notifications deleted successfully',
+        deleted_count: result.affectedRows,
+      });
+    } else {
+      const initialCount = mockNotifications.length;
+      for (let i = mockNotifications.length - 1; i >= 0; i--) {
+        if (mockNotifications[i].recipient_id === currentUser.id) {
+          mockNotifications.splice(i, 1);
+        }
+      }
+      return res.json({
+        message: 'All notifications deleted successfully',
+        deleted_count: initialCount - mockNotifications.length,
+      });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1413,11 +2070,19 @@ app.post('/api/notifications', async (req, res) => {
       });
     }
 
-    const [actor] = await pool.query('SELECT * FROM users WHERE id = ?', [targetActorId]);
-    const [video] = newNotif.video_id ? await pool.query('SELECT * FROM videos WHERE id = ?', [newNotif.video_id]) : [[]];
+    let actor = null;
+    let video = null;
+    if (isMySQLActive) {
+      const [aRows] = await pool.query('SELECT * FROM users WHERE id = ?', [targetActorId]);
+      actor = aRows[0] || null;
+      if (newNotif.video_id) {
+        const [vRows] = await pool.query('SELECT * FROM videos WHERE id = ?', [newNotif.video_id]);
+        video = vRows[0] || null;
+      }
+    }
 
     res.status(201).json({
-      data: formatNotification(newNotif, actor[0] || null, video[0] || null, baseUrl),
+      data: formatNotification(newNotif, actor, video, baseUrl),
       message: 'Notification created successfully',
     });
   } catch (err) {
@@ -1429,18 +2094,21 @@ app.post('/api/notifications', async (req, res) => {
 // 9. TRANG CHỦ & API DOCUMENTATION
 // ==========================================
 app.get('/', (req, res) => {
+  const modeLabel = isMySQLActive ? 'MySQL 8.4 Database' : 'Mock File Data (Cloud Fallback)';
+  const modeColor = isMySQLActive ? '#00b4d8' : '#2ec4b6';
+
   res.send(`
   <!DOCTYPE html>
   <html lang="vi">
   <head>
     <meta charset="UTF-8">
-    <title>TikTok MySQL Backend API</title>
+    <title>TikTok API Server</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
       body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #161823; line-height: 1.6; background-color: #fafafa; }
       .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
       h1 { color: #fe2c55; margin-top: 0; display: flex; align-items: center; gap: 10px; }
-      .badge { background: #00b4d8; color: white; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-weight: bold; }
+      .badge { background: ${modeColor}; color: white; padding: 3px 10px; border-radius: 6px; font-size: 13px; font-weight: bold; }
       .endpoint { background: #f8f8f8; border-left: 4px solid #fe2c55; padding: 12px 16px; margin: 12px 0; border-radius: 0 8px 8px 0; }
       code { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: Consolas, monospace; }
       a { color: #fe2c55; text-decoration: none; font-weight: 600; }
@@ -1454,8 +2122,8 @@ app.get('/', (req, res) => {
   </head>
   <body>
     <div class="card">
-      <h1>TikTok API Server <span class="badge">MySQL 8.4</span></h1>
-      <p>Hệ thống backend đã kết nối trực tiếp với cơ sở dữ liệu <strong>MySQL (tiktok_db)</strong>.</p>
+      <h1>TikTok API Server <span class="badge">${modeLabel}</span></h1>
+      <p>Chế độ lưu trữ: <strong>${modeLabel}</strong>. Sẵn sàng kết nối 100% với Frontend TikTok UI.</p>
       
       <h3>1. Tài khoản & Xác thực (Auth & Profile)</h3>
       <div class="endpoint">
@@ -1497,30 +2165,40 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// KHỞI ĐỘNG SERVER & AUTO INIT DB
+// KHỞI ĐỘNG SERVER (DUAL MODE: MYSQL & FALLBACK)
 // ==========================================
 const PORT = process.env.PORT || 8080;
 
+const startServer = async () => {
+  try {
+    const conn = await pool.getConnection();
+    conn.release();
+    isMySQLActive = true;
+    console.log('✅ Da ket noi thanh cong den MySQL Server!');
+    await initDatabase(false);
+  } catch (err) {
+    isMySQLActive = false;
+    console.log('ℹ️ Khong the ket noi MySQL (hoac dang chay tren Cloud Render).');
+    console.log('👉 Tu dong chuyen sang che do FALLBACK (Mock File Data) san co.');
+  }
+
+  app.listen(PORT, () => {
+    console.log(`\n=================================================`);
+    console.log(` TikTok API Server dang chay tai: http://localhost:${PORT}`);
+    console.log(
+      ` Che do luu tru: ${
+        isMySQLActive ? 'MySQL 8.4 Database [tiktok_db]' : 'Mock File Data (Cloud Fallback)'
+      }`
+    );
+    console.log(` Test Profile: http://localhost:${PORT}/api/users/@bear`);
+    console.log(` Test Videos: http://localhost:${PORT}/api/videos?type=for-you`);
+    console.log(` Test Search: http://localhost:${PORT}/api/users/search?q=bear`);
+    console.log(`=================================================\n`);
+  });
+};
+
 if (process.env.NODE_ENV !== 'test') {
-  initDatabase(false)
-    .then(() => {
-      app.listen(PORT, () => {
-        console.log(`\n=================================================`);
-        console.log(` TikTok API Server (MySQL) đang chạy tại: http://localhost:${PORT}`);
-        console.log(` Database: MySQL 8.4 [tiktok_db] trên cổng ${process.env.DB_PORT || 3306}`);
-        console.log(` Test Profile: http://localhost:${PORT}/api/users/@bear`);
-        console.log(` Test Videos: http://localhost:${PORT}/api/videos?type=for-you`);
-        console.log(` Test Search: http://localhost:${PORT}/api/users/search?q=bear`);
-        console.log(` Test Notifications: http://localhost:${PORT}/api/notifications`);
-        console.log(`=================================================\n`);
-      });
-    })
-    .catch((err) => {
-      console.error('❌ Lỗi kết nối MySQL khi khởi động server:', err.message);
-      app.listen(PORT, () => {
-        console.log(` Server đang lắng nghe tại http://localhost:${PORT} (Chế độ kiểm tra)`);
-      });
-    });
+  startServer();
 }
 
 module.exports = app;

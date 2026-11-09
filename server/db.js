@@ -10,7 +10,8 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  charset: 'utf8mb4'
+  charset: 'utf8mb4',
+  connectTimeout: 2500 // Timeout 2.5s neu tren Render khong co MySQL thi fallback ngay
 });
 
 module.exports = pool;
