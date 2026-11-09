@@ -407,39 +407,50 @@ const removeNotification = async ({ recipient_id, actor_id, type, video_id = nul
 app.post('/api/auth/login', async (req, res) => {
   try {
     const baseUrl = getBaseUrl(req);
-    const { email, nickname } = req.body;
+    const { email, nickname, username, account, password } = req.body;
+    const loginIdentifier = (nickname || username || account || '').trim();
 
     let user = null;
     if (isMySQLActive) {
-      if (nickname) {
-        const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(nickname) = ?', [
-          nickname.trim().toLowerCase(),
-        ]);
+      if (loginIdentifier) {
+        const [rows] = await pool.query(
+          'SELECT * FROM users WHERE LOWER(nickname) = ? OR LOWER(email) = ?',
+          [loginIdentifier.toLowerCase(), loginIdentifier.toLowerCase()]
+        );
         user = rows[0] || null;
       } else if (email) {
-        const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(nickname) = ?', [
+        const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ?', [
           email.trim().toLowerCase(),
-          'bear',
         ]);
-        user = rows[0] || null;
-      }
-      if (!user) {
-        const [rows] = await pool.query("SELECT * FROM users WHERE nickname = 'bear' LIMIT 1");
-        user = rows[0] || null;
-      }
-      if (!user) {
-        const [rows] = await pool.query('SELECT * FROM users ORDER BY id ASC LIMIT 1');
         user = rows[0] || null;
       }
     } else {
-      if (nickname) {
-        user = mockUsers.find((u) => u.nickname.toLowerCase() === nickname.toLowerCase());
+      if (loginIdentifier) {
+        user = mockUsers.find(
+          (u) =>
+            u.nickname.toLowerCase() === loginIdentifier.toLowerCase() ||
+            (u.email && u.email.toLowerCase() === loginIdentifier.toLowerCase())
+        );
       } else if (email) {
         user = mockUsers.find(
-          (u) => (u.email && u.email.toLowerCase() === email.toLowerCase()) || u.nickname.toLowerCase() === 'bear'
+          (u) => u.email && u.email.toLowerCase() === email.trim().toLowerCase()
         );
       }
-      if (!user) {
+    }
+
+    // Nếu người dùng có nhập tài khoản nhưng không tồn tại -> báo lỗi 401
+    if ((loginIdentifier || email) && !user) {
+      return res.status(401).json({
+        message: 'Tài khoản hoặc mật khẩu không chính xác. Vui lòng thử lại!',
+      });
+    }
+
+    // Nếu không truyền dữ liệu gì (demo call cũ) -> fallback Bear
+    if (!user) {
+      if (isMySQLActive) {
+        const [rows] = await pool.query("SELECT * FROM users WHERE nickname = 'bear' LIMIT 1");
+        user = rows[0] || null;
+      } else {
         user = mockUsers.find((u) => u.nickname === 'bear') || mockUsers[0];
       }
     }

@@ -109,7 +109,7 @@ const rankSearchResults = (results, query) => {
 };
 
 function Header() {
-   const { currentUser, login, logout } = useAuth();
+   const { currentUser, login, logout, openLoginModal } = useAuth();
    const navigate = useNavigate();
 
    const userMenu = [
@@ -332,8 +332,8 @@ function Header() {
                   </>
                ) : (
                   <>
-                     <Button text>Upload</Button>
-                     <Button primary onClick={login}>
+                     <Button text onClick={openLoginModal}>Upload</Button>
+                     <Button primary onClick={openLoginModal}>
                         Log in
                      </Button>
                   </>

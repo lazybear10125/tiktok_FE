@@ -196,6 +196,10 @@ function CommentsPopup({ isOpen, onClose, post, currentUser, openLoginModal }) {
    }, [currentPostId, creatorNickname]);
 
    const handleToggleLike = (commentId) => {
+      if (!currentUser) {
+         openLoginModal();
+         return;
+      }
       const isLiked = !!likedMap[commentId];
       setLikedMap((prev) => ({
          ...prev,

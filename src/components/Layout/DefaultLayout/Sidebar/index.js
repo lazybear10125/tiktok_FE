@@ -21,7 +21,7 @@ import * as userServices from '~/services/userService';
 const cx = classNames.bind(styles);
 
 function Sidebar() {
-   const { currentUser, login } = useAuth();
+   const { currentUser, login, openLoginModal } = useAuth();
    const [suggestedUsers, setSuggestedUsers] = useState(userServices.DEFAULT_SUGGESTED_USERS || []);
    const [followingUsers, setFollowingUsers] = useState([]);
 
@@ -132,7 +132,7 @@ function Sidebar() {
          {!currentUser && (
             <div className={cx('login')}>
                <p className={cx('login-tip')}>Log in to follow creators, like videos, and view comments.</p>
-               <Button outline className={cx('login-btn')} onClick={login}>
+               <Button outline className={cx('login-btn')} onClick={openLoginModal}>
                   Log in
                </Button>
             </div>

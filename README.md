@@ -78,5 +78,8 @@
          - random article
 24.   - Following:
          - random article
+25.   - Login:
+         - popper login
+26.   -
 
 #### api nhiều data load chậm

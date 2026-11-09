@@ -12,12 +12,14 @@ export const removeToken = () => {
    localStorage.removeItem('token');
 };
 
-export const login = async ({ email, password } = {}) => {
+export const login = async (credentials = {}) => {
    try {
-      const res = await httpRequest.post('auth/login', {
-         email,
-         password,
-      });
+      const payload = typeof credentials === 'string' ? { account: credentials } : { ...credentials };
+      if (payload.account && !payload.nickname && !payload.username && !payload.email) {
+         payload.nickname = payload.account;
+         payload.username = payload.account;
+      }
+      const res = await httpRequest.post('auth/login', payload);
       if (res.token) {
          setToken(res.token);
       }

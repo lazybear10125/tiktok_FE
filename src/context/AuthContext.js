@@ -11,24 +11,36 @@ export function AuthProvider({ children }) {
    const location = useLocation();
    const navigate = useNavigate();
 
-   // Mặc định đăng nhập tài khoản có sẵn khi mở website lần đầu (khi isLoggedIn !== 'false')
+   // Trạng thái người dùng đăng nhập: Chỉ khởi tạo true nếu có token hợp lệ và isLoggedIn === 'true'
    const [currentUser, setCurrentUser] = useState(() => {
       const stored = localStorage.getItem('isLoggedIn');
-      if (stored === 'false') {
-         return false;
+      const token = localStorage.getItem('token');
+      if (stored === 'true' && token) {
+         try {
+            const cached = localStorage.getItem('user_profile');
+            if (cached) {
+               return JSON.parse(cached);
+            }
+         } catch {
+            // ignore
+         }
+         return true;
       }
-      return true;
+      return false;
    });
 
    const [modalConfig, setModalConfig] = useState({
       isOpen: false,
-      title: 'Bạn cần đăng nhập!',
-      description: 'Vui lòng đăng nhập để theo dõi, tương tác và trải nghiệm đầy đủ các tính năng của TikTok.',
+      title: 'Log in to TikTok',
+      description: 'Log in to follow creators, like videos, and view comments.',
+      initialView: 'select_method',
    });
 
+   // Đồng bộ dữ liệu tài khoản từ backend khi khởi chạy ứng dụng
    useEffect(() => {
       const stored = localStorage.getItem('isLoggedIn');
-      if (stored === 'false') {
+      const token = localStorage.getItem('token');
+      if (stored !== 'true' || !token) {
          setCurrentUser(false);
          return;
       }
@@ -38,19 +50,28 @@ export function AuthProvider({ children }) {
          .then((userData) => {
             if (userData) {
                setCurrentUser(userData);
+               localStorage.setItem('user_profile', JSON.stringify(userData));
                localStorage.setItem('isLoggedIn', 'true');
+            } else {
+               setCurrentUser(false);
+               localStorage.setItem('isLoggedIn', 'false');
+               authServices.removeToken();
             }
          })
-         .catch(() => {});
+         .catch(() => {
+            setCurrentUser(false);
+            localStorage.setItem('isLoggedIn', 'false');
+            authServices.removeToken();
+         });
    }, []);
 
    const openLoginModal = (options = {}) => {
       setModalConfig({
          isOpen: true,
-         title: options.title || 'Bạn cần đăng nhập!',
+         title: options.title || 'Log in to TikTok',
          description:
-            options.description ||
-            'Vui lòng đăng nhập để theo dõi, tương tác và trải nghiệm đầy đủ các tính năng của TikTok.',
+            options.description || 'Log in to follow creators, like videos, and view comments.',
+         initialView: options.view || 'select_method',
       });
    };
 
@@ -58,42 +79,52 @@ export function AuthProvider({ children }) {
       setModalConfig((prev) => ({ ...prev, isOpen: false }));
    };
 
-   // Route handling: không tự động đăng nhập lại nếu phiên đã bị Logout
+   // Route handling: nếu truy cập trực tiếp route /login, mở Login Modal và chuyển về feed/home
    useEffect(() => {
-      const stored = localStorage.getItem('isLoggedIn');
-      if (stored === 'false') {
-         if (currentUser) setCurrentUser(false);
-         return;
+      if (location.pathname === config.routes.login) {
+         openLoginModal();
+         navigate(config.routes.feed, { replace: true });
       }
+   }, [location.pathname, navigate]);
 
-      if (location.pathname === config.routes.feed || location.pathname === '/foryou') {
-         if (!currentUser) setCurrentUser(true);
-         localStorage.setItem('isLoggedIn', 'true');
-      } else if (location.pathname === config.routes.login) {
-         setCurrentUser(false);
-         localStorage.setItem('isLoggedIn', 'false');
-      }
-   }, [location.pathname, currentUser]);
-
+   // Xử lý Đăng nhập qua API backend thực tế (POST /api/auth/login)
    const login = async (credentials) => {
       try {
          const res = await authServices.login(credentials);
-         if (res && res.data) {
-            setCurrentUser(res.data);
-         } else {
-            setCurrentUser(true);
+         const user = res.data || (await authServices.getCurrentUser()) || true;
+         setCurrentUser(user);
+         if (typeof user === 'object') {
+            localStorage.setItem('user_profile', JSON.stringify(user));
          }
-      } catch {
-         setCurrentUser(true);
-      }
-      localStorage.setItem('isLoggedIn', 'true');
-      closeLoginModal();
-      if (location.pathname === config.routes.home || location.pathname === config.routes.login) {
-         navigate(config.routes.feed);
+         localStorage.setItem('isLoggedIn', 'true');
+         closeLoginModal();
+         window.dispatchEvent(new CustomEvent('auth-login', { detail: { user } }));
+         return res;
+      } catch (error) {
+         // Ném lỗi ra ngoài để AuthModal hiển thị thông báo lỗi trên form
+         throw error;
       }
    };
 
-   // Chức năng LOGOUT RESET TO ZERO: xóa sạch 100% dữ liệu cá nhân, đưa về trạng thái trắng tinh
+   // Xử lý Đăng ký qua API backend thực tế (POST /api/auth/register)
+   const register = async (data) => {
+      try {
+         const res = await authServices.register(data);
+         const user = res.data || (await authServices.getCurrentUser()) || true;
+         setCurrentUser(user);
+         if (typeof user === 'object') {
+            localStorage.setItem('user_profile', JSON.stringify(user));
+         }
+         localStorage.setItem('isLoggedIn', 'true');
+         closeLoginModal();
+         window.dispatchEvent(new CustomEvent('auth-login', { detail: { user } }));
+         return res;
+      } catch (error) {
+         throw error;
+      }
+   };
+
+   // Chức năng LOGOUT RESET TO ZERO: xóa sạch 100% dữ liệu cá nhân, đưa về trạng thái khách (Guest)
    const logout = () => {
       // 1. Reset state user
       setCurrentUser(false);
@@ -161,7 +192,9 @@ export function AuthProvider({ children }) {
          value={{
             currentUser,
             setCurrentUser,
+            isLoggedIn: !!currentUser,
             login,
+            register,
             logout,
             openLoginModal,
             closeLoginModal,
@@ -172,8 +205,8 @@ export function AuthProvider({ children }) {
             isOpen={modalConfig.isOpen}
             onClose={closeLoginModal}
             onLogin={login}
-            title={modalConfig.title}
-            description={modalConfig.description}
+            onRegister={register}
+            initialView={modalConfig.initialView}
          />
       </AuthContext.Provider>
    );
